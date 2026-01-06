@@ -528,13 +528,26 @@
                         <option value="greedy">贪心算法（利益至上）</option>
                         <option value="heuristic">带权启发（战略布局）</option>
                         <option value="entropy">熵减算法（风险对冲）</option>
-                        <option value="comprehensive">综合推荐（三重共识）</option>
-                        <option value="auto">动态切换（时机把控）</option>
+                        <option value="comprehensive">综合推荐（算法融合）</option>
                     </select>
                 </div>
                 <div class="prob-input-group" id="weightParamGroup" style="display:none;">
                     <label>探索权重 (w)</label>
                     <input type="number" id="heuristicWeight" value="1.0" step="0.1" min="0.1" max="5.0" onchange="updateHeuristicWeight(this.value)" style="width:60px;">
+                </div>
+                <div id="comprehensiveParamGroup" style="display:none; margin-top:10px;">
+                    <div style="font-size:12px; margin-bottom:5px; color:#666;">参与综合的算法：</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                        <label style="font-size:11px; display:flex; align-items:center;">
+                            <input type="checkbox" id="compGreedy" checked onchange="updateComprehensiveAlgorithms()"> 贪心
+                        </label>
+                        <label style="font-size:11px; display:flex; align-items:center;">
+                            <input type="checkbox" id="compHeuristic" checked onchange="updateComprehensiveAlgorithms()"> 带权启发
+                        </label>
+                        <label style="font-size:11px; display:flex; align-items:center;">
+                            <input type="checkbox" id="compEntropy" checked onchange="updateComprehensiveAlgorithms()"> 熵减
+                        </label>
+                    </div>
                 </div>
                 <div id="weightHelp" style="display:none; font-size:11px; color:#666; margin-top:5px; padding:8px; background:#f8f9fa; border-radius:6px;">
                     <b>探索权重说明：</b> w值越大，算法越倾向于选择周围未开格子多的位置（探索），w值越小则越关注当前格子直接收益（利用）。推荐值：1.0-2.0。
@@ -694,16 +707,36 @@ function init() {
     // 渲染算法选择
     document.getElementById('algorithmSelect').value = state.currentAlgorithm;
     document.getElementById('heuristicWeight').value = state.heuristicWeight;
-    document.getElementById('autoAlgorithm').checked = state.autoAlgorithm;
+    document.getElementById('autoAlgorithm').checked = false; // 不再使用
     
-    // 根据算法显示/隐藏权重参数
+    // 初始化综合推荐算法选择
+    if (!state.comprehensiveAlgorithms) {
+        state.comprehensiveAlgorithms = {
+            greedy: true,
+            heuristic: true,
+            entropy: true
+        };
+    }
+    document.getElementById('compGreedy').checked = state.comprehensiveAlgorithms.greedy;
+    document.getElementById('compHeuristic').checked = state.comprehensiveAlgorithms.heuristic;
+    document.getElementById('compEntropy').checked = state.comprehensiveAlgorithms.entropy;
+    
+    // 根据算法显示/隐藏参数组
     const weightGroup = document.getElementById('weightParamGroup');
+    const comprehensiveGroup = document.getElementById('comprehensiveParamGroup');
     const weightHelp = document.getElementById('weightHelp');
-    if (state.currentAlgorithm === 'weighted') {
+    
+    if (state.currentAlgorithm === 'heuristic') {
         weightGroup.style.display = 'flex';
+        comprehensiveGroup.style.display = 'none';
         weightHelp.style.display = 'block';
+    } else if (state.currentAlgorithm === 'comprehensive') {
+        weightGroup.style.display = 'none';
+        comprehensiveGroup.style.display = 'block';
+        weightHelp.style.display = 'none';
     } else {
         weightGroup.style.display = 'none';
+        comprehensiveGroup.style.display = 'none';
         weightHelp.style.display = 'none';
     }
 
@@ -767,20 +800,25 @@ function updatePityStart(val) { state.pityStart = parseInt(val) || 3; updateAnal
 function updatePityMax(val) { state.pityMax = parseInt(val) || 5; updateAnalysis(); }
 function updateAlgorithm(val) {
     state.currentAlgorithm = val;
-    if (val === 'auto') {
-        state.autoAlgorithm = true;
-        document.getElementById('autoAlgorithm').checked = true;
-    } else {
-        state.autoAlgorithm = false;
-        document.getElementById('autoAlgorithm').checked = false;
-    }
+    // 移除autoAlgorithm相关逻辑，因为不再有动态切换
+    state.autoAlgorithm = false;
+    document.getElementById('autoAlgorithm').checked = false;
+    
     const weightGroup = document.getElementById('weightParamGroup');
+    const comprehensiveGroup = document.getElementById('comprehensiveParamGroup');
     const weightHelp = document.getElementById('weightHelp');
+    
     if (val === 'heuristic') {
         weightGroup.style.display = 'flex';
+        comprehensiveGroup.style.display = 'none';
         weightHelp.style.display = 'block';
+    } else if (val === 'comprehensive') {
+        weightGroup.style.display = 'none';
+        comprehensiveGroup.style.display = 'block';
+        weightHelp.style.display = 'none';
     } else {
         weightGroup.style.display = 'none';
+        comprehensiveGroup.style.display = 'none';
         weightHelp.style.display = 'none';
     }
     updateAnalysis();
@@ -796,6 +834,16 @@ function toggleAutoAlgorithm(checked) {
 
 function updateHeuristicWeight(val) {
     state.heuristicWeight = parseFloat(val) || 1.0;
+    updateAnalysis();
+}
+
+function updateComprehensiveAlgorithms() {
+    // 保存选择的算法到state
+    state.comprehensiveAlgorithms = {
+        greedy: document.getElementById('compGreedy').checked,
+        heuristic: document.getElementById('compHeuristic').checked,
+        entropy: document.getElementById('compEntropy').checked
+    };
     updateAnalysis();
 }
 
@@ -1028,36 +1076,63 @@ const Algorithms = {
         return scores;
     },
     
-    // 综合推荐算法：选择在三种算法中得分最高的格子
-    comprehensive: function(p, grid, heuristicWeight) {
+    // 综合推荐算法：根据选择的算法计算综合分数
+    comprehensive: function(p, grid, heuristicWeight, selectedAlgorithms) {
         let scores = [];
         
-        // 计算三种算法的分数
-        const greedyScores = this.greedy(p, grid);
-        const heuristicScores = this.heuristic(p, grid, heuristicWeight);
-        const entropyScores = this.entropy(p, grid);
+        // 如果没有指定选择的算法，使用默认（全部）
+        if (!selectedAlgorithms) {
+            selectedAlgorithms = {
+                greedy: true,
+                heuristic: true,
+                entropy: true
+            };
+        }
         
-        // 将分数转换为字典以便快速查找
-        const greedyMap = new Map();
-        const heuristicMap = new Map();
-        const entropyMap = new Map();
+        // 计算选择的算法的分数
+        const algorithmScores = [];
+        const algorithmMaps = [];
         
-        greedyScores.forEach(s => greedyMap.set(s.i, s.score));
-        heuristicScores.forEach(s => heuristicMap.set(s.i, s.score));
-        entropyScores.forEach(s => entropyMap.set(s.i, s.score));
+        if (selectedAlgorithms.greedy) {
+            const greedyScores = this.greedy(p, grid);
+            const greedyMap = new Map();
+            greedyScores.forEach(s => greedyMap.set(s.i, s.score));
+            algorithmMaps.push(greedyMap);
+        }
+        if (selectedAlgorithms.heuristic) {
+            const heuristicScores = this.heuristic(p, grid, heuristicWeight);
+            const heuristicMap = new Map();
+            heuristicScores.forEach(s => heuristicMap.set(s.i, s.score));
+            algorithmMaps.push(heuristicMap);
+        }
+        if (selectedAlgorithms.entropy) {
+            const entropyScores = this.entropy(p, grid);
+            const entropyMap = new Map();
+            entropyScores.forEach(s => entropyMap.set(s.i, s.score));
+            algorithmMaps.push(entropyMap);
+        }
         
-        // 计算每个格子的综合分数
+        // 如果没有选择任何算法，返回空数组
+        if (algorithmMaps.length === 0) {
+            return [];
+        }
+        
+        // 计算每个格子的综合分数（所选算法的平均值）
         for (let i = 0; i < 49; i++) {
             if (grid[i]) continue;
             
-            const greedyScore = greedyMap.get(i) || 0;
-            const heuristicScore = heuristicMap.get(i) || 0;
-            const entropyScore = entropyMap.get(i) || 0;
+            let sum = 0;
+            let count = 0;
             
-            // 综合分数：三种算法的加权平均
-            // 可以调整权重，这里先使用简单平均
-            const combinedScore = (greedyScore + heuristicScore + entropyScore) / 3;
+            for (const map of algorithmMaps) {
+                const score = map.get(i);
+                if (score !== undefined) {
+                    sum += score;
+                    count++;
+                }
+            }
             
+            const combinedScore = count > 0 ? sum / count : 0;
             scores.push({ i, score: combinedScore });
         }
         
@@ -1234,7 +1309,7 @@ function runSimulation(algorithmType, iterations = 1000) {
             } else if (actualAlgorithm === 'entropy') {
                 scores = Algorithms.entropy(p, grid);
             } else if (actualAlgorithm === 'comprehensive') {
-                scores = Algorithms.comprehensive(p, grid, heuristicWeight);
+                scores = Algorithms.comprehensive(p, grid, heuristicWeight, state.comprehensiveAlgorithms);
             } else {
                 scores = Algorithms.greedy(p, grid);
             }
@@ -1364,19 +1439,11 @@ function updateAnalysis() {
     let currentAlgorithm = state.currentAlgorithm;
     const algorithmSelect = document.getElementById('algorithmSelect');
     
-    // 如果启用了智能自动切换，则使用推荐算法
-    if (state.autoAlgorithm) {
-        currentAlgorithm = recommendedAlgorithm;
-        // 确保下拉菜单显示为'auto'
-        if (algorithmSelect.value !== 'auto') {
-            algorithmSelect.value = 'auto';
-        }
-    } else {
-        // 如果当前算法是'auto'但未启用自动切换，则切换到推荐算法
-        if (currentAlgorithm === 'auto') {
-            currentAlgorithm = recommendedAlgorithm;
-            algorithmSelect.value = recommendedAlgorithm;
-        }
+    // 不再有动态切换逻辑
+    // 确保当前算法不是'auto'
+    if (currentAlgorithm === 'auto') {
+        currentAlgorithm = 'comprehensive';
+        algorithmSelect.value = 'comprehensive';
     }
     
     // 动态概率调整（与模拟中的逻辑一致）
@@ -1429,7 +1496,7 @@ function updateAnalysis() {
         greedy: Algorithms.greedy(p, state.grid),
         heuristic: Algorithms.heuristic(p, state.grid, state.heuristicWeight),
         entropy: Algorithms.entropy(p, state.grid),
-        comprehensive: Algorithms.comprehensive(p, state.grid, state.heuristicWeight)
+        comprehensive: Algorithms.comprehensive(p, state.grid, state.heuristicWeight, state.comprehensiveAlgorithms)
     };
     
     // 计算每个算法的总分
@@ -1500,16 +1567,13 @@ function updateAnalysis() {
     } else if (currentAlgorithm === 'comprehensive') {
         displayScores = normalizedScores.comprehensive;
     } else {
-        // 如果选择动态切换，显示综合分数
-        displayScores = combinedScores;
+        // 默认使用综合推荐
+        displayScores = normalizedScores.comprehensive;
     }
     
     // 更新算法下拉菜单的呼吸灯特效
     algorithmSelect.classList.remove('algorithm-pulse');
-    // 如果启用了智能自动切换，为推荐算法添加呼吸灯
-    if (state.autoAlgorithm) {
-        algorithmSelect.classList.add('algorithm-pulse');
-    }
+    // 不再有自动切换，所以不需要呼吸灯
     
     // 更新显示
     for (let i = 0; i < 49; i++) {
@@ -1569,14 +1633,9 @@ function updateAnalysis() {
         localStorage.removeItem(STORAGE_KEY);
     }
     
-    // 更新状态栏，显示阶段和推荐算法
-    const algorithmDisplay = state.autoAlgorithm ? '智能' : currentAlgorithm;
-    let scoreType = '';
-    if (currentAlgorithm === 'auto' || state.autoAlgorithm) {
-        scoreType = ' (综合评分)';
-    } else {
-        scoreType = ' (归一化)';
-    }
+    // 更新状态栏，显示阶段和算法
+    const algorithmDisplay = currentAlgorithm;
+    let scoreType = ' (归一化)';
     const statusText = window.innerWidth <= 768 
         ? `剩余:${unopened} 阶段:${stage} 算法:${algorithmDisplay}`
         : `剩余: ${unopened} | 阶段: ${stage} | 算法: ${algorithmDisplay}${scoreType} | 点击: ${state.clicks}`;
@@ -1593,57 +1652,23 @@ function updateAnalysis() {
 function runBatchSimulation() {
     const iterations = parseInt(document.getElementById('simIterations').value) || 1000;
     
-    // 确定实际使用的算法：如果当前算法是'auto'或启用了自动切换，则根据阶段选择算法
+    // 确定实际使用的算法
     let actualAlgorithm = state.currentAlgorithm;
     let displayAlgorithm = actualAlgorithm; // 用于显示的算法名称
     
-    // 检查是否需要动态切换（使用带滞后的阶段判断）
-    if (actualAlgorithm === 'auto' || state.autoAlgorithm) {
-        // 计算未开启格子数
-        let unopened = 0;
-        for (let i = 0; i < 49; i++) {
-            if (!state.grid[i]) unopened++;
-        }
-        
-        // 使用与updateAnalysis相同的滞后逻辑
-        // 判断阶段
-        let stageForAuto;
-        if (unopened > 37) {
-            stageForAuto = "前期";
-        } else if (unopened > 35 && window.lastStage === "前期") {
-            stageForAuto = "前期";
-        } else if (unopened >= 17) {
-            stageForAuto = "中期";
-        } else if (unopened >= 15 && window.lastStage === "中期") {
-            stageForAuto = "中期";
-        } else if (unopened >= 13) {
-            stageForAuto = "后期";
-        } else {
-            stageForAuto = "末期";
-        }
-        
-        // 根据阶段选择算法
-        if (stageForAuto === "前期") {
-            actualAlgorithm = 'heuristic';
-        } else if (stageForAuto === "中期") {
-            actualAlgorithm = 'greedy';
-        } else {
-            actualAlgorithm = 'entropy';
-        }
-        
-        // 显示时使用'动态切换'
-        displayAlgorithm = '动态切换';
+    // 根据算法值设置显示名称
+    if (actualAlgorithm === 'greedy') {
+        displayAlgorithm = '贪心算法';
+    } else if (actualAlgorithm === 'heuristic') {
+        displayAlgorithm = '带权启发';
+    } else if (actualAlgorithm === 'entropy') {
+        displayAlgorithm = '熵减算法';
+    } else if (actualAlgorithm === 'comprehensive') {
+        displayAlgorithm = '综合推荐';
     } else {
-        // 根据算法值设置显示名称
-        if (actualAlgorithm === 'greedy') {
-            displayAlgorithm = '贪心算法';
-        } else if (actualAlgorithm === 'heuristic') {
-            displayAlgorithm = '带权启发';
-        } else if (actualAlgorithm === 'entropy') {
-            displayAlgorithm = '熵减算法';
-        } else if (actualAlgorithm === 'comprehensive') {
-            displayAlgorithm = '综合推荐';
-        }
+        // 默认使用综合推荐
+        actualAlgorithm = 'comprehensive';
+        displayAlgorithm = '综合推荐';
     }
     
     // 显示加载状态
@@ -1732,7 +1757,7 @@ function runBatchSimulation() {
             } else if (heatmapAlgorithm === 'entropy') {
                 scores = Algorithms.entropy(p, grid);
             } else if (heatmapAlgorithm === 'comprehensive') {
-                scores = Algorithms.comprehensive(p, grid, state.heuristicWeight);
+                scores = Algorithms.comprehensive(p, grid, state.heuristicWeight, state.comprehensiveAlgorithms);
             }
             
             if (scores.length > 0) {

@@ -514,10 +514,10 @@
                 <div class="prob-input-group">
                     <label>当前算法</label>
                     <select id="algorithmSelect" onchange="updateAlgorithm(this.value)" style="width:180px; padding:4px;">
-                        <option value="greedy">贪心算法 (默认推荐)</option>
-                        <option value="weighted">带权启发式 (平衡探索与利用)</option>
-                        <option value="entropy">熵减算法 (分散未开格子)</option>
-                        <option value="auto">智能自动切换</option>
+                        <option value="greedy">贪心算法（利益至上）</option>
+                        <option value="heuristic">带权启发（战略布局）</option>
+                        <option value="entropy">熵减算法（风险对冲）</option>
+                        <option value="auto">动态切换（时机把控）</option>
                     </select>
                 </div>
                 <div class="prob-input-group" id="weightParamGroup" style="display:none;">
@@ -634,7 +634,12 @@ function loadState() {
         result.pityStart = Number.isInteger(loaded.pityStart) ? loaded.pityStart : defaultData.pityStart;
         result.pityMax = Number.isInteger(loaded.pityMax) ? loaded.pityMax : defaultData.pityMax;
         result.currentMisses = Number.isInteger(loaded.currentMisses) ? loaded.currentMisses : defaultData.currentMisses;
-        result.currentAlgorithm = typeof loaded.currentAlgorithm === 'string' ? loaded.currentAlgorithm : defaultData.currentAlgorithm;
+        // 处理算法标识符的转换：将'weighted'转换为'heuristic'
+        let loadedAlgorithm = typeof loaded.currentAlgorithm === 'string' ? loaded.currentAlgorithm : defaultData.currentAlgorithm;
+        if (loadedAlgorithm === 'weighted') {
+            loadedAlgorithm = 'heuristic';
+        }
+        result.currentAlgorithm = loadedAlgorithm;
         result.heuristicWeight = typeof loaded.heuristicWeight === 'number' ? loaded.heuristicWeight : defaultData.heuristicWeight;
         result.autoAlgorithm = typeof loaded.autoAlgorithm === 'boolean' ? loaded.autoAlgorithm : defaultData.autoAlgorithm;
         
@@ -759,7 +764,7 @@ function updateAlgorithm(val) {
     }
     const weightGroup = document.getElementById('weightParamGroup');
     const weightHelp = document.getElementById('weightHelp');
-    if (val === 'weighted') {
+    if (val === 'heuristic') {
         weightGroup.style.display = 'flex';
         weightHelp.style.display = 'block';
     } else {
@@ -877,7 +882,7 @@ const Algorithms = {
     },
     
     // 带权启发式：f(n) = g(n) + w * h(n)
-    weighted: function(p, grid, weight) {
+    heuristic: function(p, grid, weight) {
         let scores = [];
         // 计算每个格子的 g(n)（基础收益）
         for (let i = 0; i < 49; i++) {
@@ -1063,7 +1068,7 @@ function runSimulation(algorithmType, iterations = 1000) {
                     if (!grid[i]) unopened++;
                 }
                 if (unopened > 35) {
-                    actualAlgorithm = 'weighted';
+                    actualAlgorithm = 'heuristic';
                 } else if (unopened >= 15) {
                     actualAlgorithm = 'greedy';
                 } else {
@@ -1074,8 +1079,8 @@ function runSimulation(algorithmType, iterations = 1000) {
             let scores;
             if (actualAlgorithm === 'greedy') {
                 scores = Algorithms.greedy(p, grid);
-            } else if (actualAlgorithm === 'weighted') {
-                scores = Algorithms.weighted(p, grid, heuristicWeight);
+            } else if (actualAlgorithm === 'heuristic') {
+                scores = Algorithms.heuristic(p, grid, heuristicWeight);
             } else if (actualAlgorithm === 'entropy') {
                 scores = Algorithms.entropy(p, grid);
             } else {
@@ -1134,7 +1139,7 @@ function updateAnalysis() {
     let stage, recommendedAlgorithm;
     if (unopened > 35) {
         stage = "前期";
-        recommendedAlgorithm = "weighted";
+        recommendedAlgorithm = "heuristic";
     } else if (unopened >= 15) {
         stage = "中期";
         recommendedAlgorithm = "greedy";
@@ -1191,8 +1196,8 @@ function updateAnalysis() {
     // 根据当前算法计算分数
     if (currentAlgorithm === 'greedy') {
         scores = Algorithms.greedy(p, state.grid);
-    } else if (currentAlgorithm === 'weighted') {
-        scores = Algorithms.weighted(p, state.grid, state.heuristicWeight);
+    } else if (currentAlgorithm === 'heuristic') {
+        scores = Algorithms.heuristic(p, state.grid, state.heuristicWeight);
     } else if (currentAlgorithm === 'entropy') {
         scores = Algorithms.entropy(p, state.grid);
     } else {
@@ -1256,6 +1261,7 @@ function runBatchSimulation() {
     
     // 确定实际使用的算法：如果当前算法是'auto'，则根据阶段选择算法
     let actualAlgorithm = state.currentAlgorithm;
+    let displayAlgorithm = actualAlgorithm; // 用于显示的算法名称
     if (actualAlgorithm === 'auto' || state.autoAlgorithm) {
         // 计算未开启格子数
         let unopened = 0;
@@ -1264,12 +1270,14 @@ function runBatchSimulation() {
         }
         // 根据阶段选择算法
         if (unopened > 35) {
-            actualAlgorithm = 'weighted';
+            actualAlgorithm = 'heuristic';
         } else if (unopened >= 15) {
             actualAlgorithm = 'greedy';
         } else {
             actualAlgorithm = 'entropy';
         }
+        // 显示时使用'动态切换'
+        displayAlgorithm = '动态切换';
     }
     
     // 显示加载状态
@@ -1355,7 +1363,7 @@ function runBatchSimulation() {
                 <table style="width:100%; font-size:11px; border-collapse:collapse;">
                     <tr>
                         <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">指标</th>
-                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">当前算法 (${actualAlgorithm})</th>
+                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">当前算法 (${displayAlgorithm})</th>
                         <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">基础贪心</th>
                     </tr>
                     <tr>

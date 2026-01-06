@@ -1217,15 +1217,19 @@ const Algorithms = {
         return scores;
     },
     
-    // 带权启发式：f(n) = g(n) + w * h(n)
+    // 改进的带权启发式：f(n) = α*g(n) + β*w*h(n)，更平衡的权重设计
     heuristic: function(p, grid, weight) {
+        const totalUnopened = grid.filter(v=>!v).length;
+        const gamePhase = totalUnopened / 49; // 1=早期，0=末期
+        
         let scores = [];
         // 计算每个格子的 g(n)（基础收益）
         for (let i = 0; i < 49; i++) {
             const r = Math.floor(i / 7), c = i % 7;
             if (grid[i]) continue;
+            
+            // --- 1. 直接期望收益 g(n) ---
             let g = 0;
-            // 基础收益计算（与贪心相同）
             let rg=0, cg=0, comb=0, cross=0, box=0;
             for(let j=0; j<7; j++) {
                 if(!grid[r*7+j]) { rg++; comb++; }
@@ -1240,10 +1244,12 @@ const Algorithms = {
                 let nr=r+dr, nc=c+dc;
                 if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) box++;
             }
-            g += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
+            g += p[4]*cross + p[5]*box + p[6]*totalUnopened;
             
-            // 改进的启发式函数 h(n)：考虑更全面的探索价值
-            // 1. 周围未开启格子数量（3x3区域）
+            // --- 2. 改进的启发式函数 h(n) ---
+            // 考虑更多维度的潜力评估
+            
+            // a) 局部密度（3x3区域）
             let h_local = 0;
             for(let dr=-1;dr<=1;dr++) {
                 for(let dc=-1;dc<=1;dc++) {
@@ -1253,27 +1259,81 @@ const Algorithms = {
                     }
                 }
             }
-            // 2. 行列潜在收益：该格子所在行和列的未开启格子数
+            
+            // b) 行列潜力
             let row_unopened = 0;
             let col_unopened = 0;
             for(let j=0; j<7; j++) {
                 if(!grid[r*7+j]) row_unopened++;
                 if(!grid[j*7+c]) col_unopened++;
             }
-            // 3. 综合启发式值：加权组合
-            // 归一化：h_local最大9，row_unopened和col_unopened最大7
+            
+            // c) 位置价值（中心位置更好）
+            const centerDist = Math.abs(r-3) + Math.abs(c-3);
+            const positionValue = 1.0 - (centerDist / 12); // 0-1，中心为1
+            
+            // d) 孤立度评估（邻居越少越孤立）
+            let neighborCount = 0;
+            for(let dr=-1;dr<=1;dr++) {
+                for(let dc=-1;dc<=1;dc++) {
+                    if(dr===0 && dc===0) continue;
+                    let nr=r+dr, nc=c+dc;
+                    if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) {
+                        neighborCount++;
+                    }
+                }
+            }
+            const isolation = 1.0 - (neighborCount / 8); // 0-1，越孤立值越大
+            
+            // 归一化
             const h_local_norm = h_local / 9;
             const row_norm = row_unopened / 7;
             const col_norm = col_unopened / 7;
             
-            // 综合启发式值：更注重局部探索，但也考虑行列潜力
-            const h = h_local_norm * 0.6 + row_norm * 0.2 + col_norm * 0.2;
+            // --- 3. 动态权重分配 ---
+            // 根据游戏阶段调整各项的重要性
             
-            // 调整权重应用：当g值较大时，权重影响应相对减小
-            const g_normalized = g / 100; // 估计g的最大值大约在100左右
-            const adjusted_weight = weight * (1 - Math.min(g_normalized, 0.5));
+            let h;
+            if (gamePhase > 0.6) { // 早期（>60%未开）
+                // 早期：注重探索和位置价值
+                h = positionValue * 0.3 + h_local_norm * 0.4 + (row_norm + col_norm) * 0.3;
+            } else if (gamePhase > 0.3) { // 中期（30%-60%）
+                // 中期：平衡各种因素
+                h = positionValue * 0.2 + h_local_norm * 0.3 + (row_norm + col_norm) * 0.3 + (1 - isolation) * 0.2;
+            } else { // 后期（<30%）
+                // 后期：优先清理孤立格子
+                h = (1 - isolation) * 0.5 + h_local_norm * 0.2 + (row_norm + col_norm) * 0.3;
+            }
             
-            const f = g + adjusted_weight * h * 50; // 乘以50以匹配g的尺度
+            // --- 4. 改进的权重调整 ---
+            // 不再过度衰减权重，而是根据阶段和概率动态调整
+            
+            // 高效事件的总概率
+            const efficiencyProb = p[1] + p[2] + p[3] + p[4] + p[5];
+            
+            // 动态权重因子：
+            // - 早期权重高（注重探索）
+            // - 高效事件概率高时权重高（潜力更重要）
+            // - 基础权重由用户控制
+            const phaseFactor = 0.5 + gamePhase * 0.5; // 早期1.0，后期0.5
+            const efficiencyFactor = 1.0 + efficiencyProb * 3; // 高效概率高时放大
+            
+            const effectiveWeight = weight * phaseFactor * efficiencyFactor;
+            
+            // --- 5. 平衡的分数计算 ---
+            // 确保g和h部分有合理的比例
+            // g值范围大约在10-100，h值范围0-1
+            
+            // 标准化g值到0-1范围（估计最大g值约120）
+            const g_normalized = Math.min(g / 120, 1.0);
+            
+            // 综合分数：平衡直接收益和潜力
+            // 使用加权平均，而不是简单相加
+            const alpha = 0.7 - 0.3 * gamePhase; // 早期0.4，后期0.7（更注重直接收益）
+            const beta = 1 - alpha;
+            
+            const f = (g_normalized * alpha + h * beta) * 100 * (1 + effectiveWeight * 0.5);
+            
             scores.push({ i, score: f });
         }
         return scores;

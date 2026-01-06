@@ -40,6 +40,67 @@
             max-width: 1300px;
             width: 100%;
             transition: all 0.4s ease;
+            box-sizing: border-box;
+        }
+        
+        /* 桌面端优化 */
+        @media screen and (min-width: 769px) {
+            .layout {
+                flex-wrap: nowrap;
+            }
+            .grid-area {
+                flex: 1 1 auto;
+                min-width: 0; /* 防止网格溢出 */
+            }
+        }
+        
+        /* 移动端优化 */
+        @media screen and (max-width: 768px) {
+            .layout {
+                flex-direction: column;
+                gap: 15px;
+                padding: 0 10px;
+            }
+            .config-panel {
+                order: 2;
+                margin-top: 10px;
+                width: 100% !important;
+                max-width: 100%;
+                position: relative;
+                top: 0;
+            }
+            .grid-area {
+                order: 1;
+                width: 100%;
+                max-width: 100%;
+            }
+            .grid {
+                width: 100%;
+                max-width: 100%;
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                aspect-ratio: 1/1;
+            }
+            .cell {
+                width: 100%;
+                height: 100%;
+                aspect-ratio: 1/1;
+            }
+        }
+        
+        /* 超小屏幕优化 */
+        @media screen and (max-width: 480px) {
+            .layout {
+                gap: 10px;
+                padding: 0 5px;
+            }
+            .config-panel {
+                padding: 12px;
+            }
+            .grid {
+                padding: 5px;
+                gap: 2px;
+            }
         }
 
         /* --- 配置面板 (响应式) --- */
@@ -102,6 +163,27 @@
             background: #0a7be0;
             transform: translateY(-50%) scale(1.1);
             box-shadow: 0 6px 16px rgba(30, 144, 255, 0.4);
+        }
+        
+        /* 移动端切换按钮样式 */
+        @media screen and (max-width: 768px) {
+            .toggle-btn {
+                position: relative;
+                right: auto;
+                top: auto;
+                transform: none;
+                width: 100%;
+                height: 40px;
+                border-radius: 8px;
+                margin-bottom: 10px;
+                font-size: 14px;
+            }
+            .toggle-btn:hover {
+                transform: scale(1.02);
+            }
+            .config-panel .toggle-btn {
+                display: block;
+            }
         }
 
         /* 移动端样式将在媒体查询中覆盖 */
@@ -192,7 +274,34 @@
         /* 其他组件 */
         .prob-input-group { margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
         .prob-input-group input { width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
-        .status-bar { margin-top: 15px; padding: 10px; border-radius: 10px; background: #fff; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); width: 100%; text-align: center; }
+        .status-bar { 
+            margin-top: 15px; 
+            padding: 10px; 
+            border-radius: 10px; 
+            background: #fff; 
+            font-size: 13px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            width: 100%; 
+            text-align: center; 
+            box-sizing: border-box;
+            word-break: break-word;
+        }
+        
+        @media screen and (max-width: 768px) {
+            .status-bar {
+                font-size: 12px;
+                padding: 8px;
+                margin-top: 10px;
+                line-height: 1.4;
+            }
+        }
+        
+        @media screen and (max-width: 480px) {
+            .status-bar {
+                font-size: 11px;
+                padding: 6px;
+            }
+        }
         .btn-reset { 
             margin-top: 15px; 
             width: 100%; 
@@ -661,17 +770,24 @@ function toggleConfig() {
     if (panel.classList.contains('collapsed')) {
         // 折叠状态
         if (isMobile) {
-            btn.innerHTML = '🔽'; // 移动端使用向下箭头
+            btn.innerHTML = '🔽 显示设置';
         } else {
-            btn.innerHTML = '▶'; // 桌面端使用向右箭头
+            btn.innerHTML = '▶';
         }
     } else {
         // 展开状态
         if (isMobile) {
-            btn.innerHTML = '🔼'; // 移动端使用向上箭头
+            btn.innerHTML = '🔼 隐藏设置';
         } else {
-            btn.innerHTML = '◀'; // 桌面端使用向左箭头
+            btn.innerHTML = '◀';
         }
+    }
+    
+    // 在移动端，滚动到顶部以便看到网格
+    if (isMobile && !panel.classList.contains('collapsed')) {
+        setTimeout(() => {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
     }
 }
 
@@ -809,13 +925,40 @@ function init() {
     // 初始化折叠按钮状态
     const isMobile = window.innerWidth <= 768;
     const btn = document.getElementById('toggleBtn');
+    const panel = document.getElementById('configPanel');
+    
     if (isMobile) {
-        btn.innerHTML = '🔼';
+        // 移动端默认折叠配置面板，以提供更多空间给网格
+        panel.classList.add('collapsed');
+        btn.innerHTML = '🔽 显示设置';
     } else {
         btn.innerHTML = '◀';
     }
     
     updateAnalysis();
+    
+    // 监听窗口大小变化，调整折叠状态
+    window.addEventListener('resize', function() {
+        const isMobileNow = window.innerWidth <= 768;
+        const panel = document.getElementById('configPanel');
+        const btn = document.getElementById('toggleBtn');
+        
+        if (isMobileNow) {
+            // 在移动端，确保按钮显示正确
+            if (panel.classList.contains('collapsed')) {
+                btn.innerHTML = '🔽 显示设置';
+            } else {
+                btn.innerHTML = '🔼 隐藏设置';
+            }
+        } else {
+            // 在桌面端
+            if (panel.classList.contains('collapsed')) {
+                btn.innerHTML = '▶';
+            } else {
+                btn.innerHTML = '◀';
+            }
+        }
+    });
 }
 
 // --- 音效系统 ---

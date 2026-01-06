@@ -673,11 +673,9 @@
                             <option value="heuristic">带权启发（战略布局）</option>
                             <option value="entropy">熵减算法（风险对冲）</option>
                             <option value="comprehensive">综合推荐（算法融合）</option>
+                            <option value="mcts">蒙特卡洛搜索（深度前瞻）</option>
+                            <option value="fastMCTS">快速蒙特卡洛（平衡型）</option>
                         </select>
-                    </div>
-                    <div class="prob-input-group">
-                        <label>智能自动切换</label>
-                        <input type="checkbox" id="autoAlgorithm" onchange="toggleAutoAlgorithm(this.checked)" style="width:auto;">
                     </div>
                     <div class="prob-input-group" id="weightParamGroup" style="display:none;">
                         <label>探索权重 (w)</label>
@@ -699,6 +697,18 @@
                             <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
                                 <input type="checkbox" id="compEntropy" checked onchange="updateComprehensiveAlgorithms()"> 熵减
                             </label>
+                            <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
+                                <input type="checkbox" id="compMCTS" onchange="updateComprehensiveAlgorithms()"> 蒙特卡洛
+                            </label>
+                        </div>
+                    </div>
+                    <div id="mctsParamGroup" style="display:none; margin-top:10px;">
+                        <div class="prob-input-group">
+                            <label>模拟次数</label>
+                            <input type="number" id="mctsIterations" value="200" min="50" max="1000" onchange="updateMCTSIterations(this.value)" style="width:70px;">
+                        </div>
+                        <div style="font-size:11px; color:#666; margin-top:5px; padding:5px; background:#f8f9fa; border-radius:4px;">
+                            <b>注意：</b> 蒙特卡洛搜索计算量较大，建议在后期使用
                         </div>
                     </div>
                     <div id="weightHelp" style="display:none; font-size:11px; color:#666; margin-top:8px; padding:8px; background:#fff; border-radius:6px; border:1px dashed #ddd;">
@@ -706,7 +716,7 @@
                     </div>
                 </div>
                 <div style="font-size:11px; color:#666; margin-top:8px; padding:8px; background:rgba(255,255,255,0.7); border-radius:6px;">
-                    <b>💡 算法提示：</b> 根据当前游戏阶段，系统会动态推荐最优算法。红色格子为当前算法推荐的最佳选择。
+                    <b>💡 算法提示：</b> 红色格子为当前算法推荐的最佳选择。蒙特卡洛搜索适合中后期复杂局面。
                 </div>
             </div>
             
@@ -783,8 +793,14 @@ const defaultData = {
     currentMisses: 0,
     currentAlgorithm: 'greedy',
     heuristicWeight: 1.0,
-    autoAlgorithm: false,
-    autoWeight: true
+    autoWeight: true,
+    mctsIterations: 200,
+    comprehensiveAlgorithms: {
+        greedy: true,
+        heuristic: true,
+        entropy: true,
+        mcts: false
+    }
 };
 
 let state = loadState();
@@ -895,37 +911,48 @@ function init() {
     // 渲染算法选择
     document.getElementById('algorithmSelect').value = state.currentAlgorithm;
     document.getElementById('heuristicWeight').value = state.heuristicWeight;
-    document.getElementById('autoAlgorithm').checked = false; // 不再使用
     document.getElementById('autoWeight').checked = state.autoWeight;
+    document.getElementById('mctsIterations').value = state.mctsIterations || 200;
     
     // 初始化综合推荐算法选择
     if (!state.comprehensiveAlgorithms) {
         state.comprehensiveAlgorithms = {
             greedy: true,
             heuristic: true,
-            entropy: true
+            entropy: true,
+            mcts: false
         };
     }
     document.getElementById('compGreedy').checked = state.comprehensiveAlgorithms.greedy;
     document.getElementById('compHeuristic').checked = state.comprehensiveAlgorithms.heuristic;
     document.getElementById('compEntropy').checked = state.comprehensiveAlgorithms.entropy;
+    document.getElementById('compMCTS').checked = state.comprehensiveAlgorithms.mcts || false;
     
     // 根据算法显示/隐藏参数组
     const weightGroup = document.getElementById('weightParamGroup');
     const comprehensiveGroup = document.getElementById('comprehensiveParamGroup');
+    const mctsGroup = document.getElementById('mctsParamGroup');
     const weightHelp = document.getElementById('weightHelp');
     
     if (state.currentAlgorithm === 'heuristic') {
         weightGroup.style.display = 'flex';
         comprehensiveGroup.style.display = 'none';
+        mctsGroup.style.display = 'none';
         weightHelp.style.display = 'block';
     } else if (state.currentAlgorithm === 'comprehensive') {
         weightGroup.style.display = 'none';
         comprehensiveGroup.style.display = 'block';
+        mctsGroup.style.display = 'none';
+        weightHelp.style.display = 'none';
+    } else if (state.currentAlgorithm === 'mcts' || state.currentAlgorithm === 'fastMCTS') {
+        weightGroup.style.display = 'none';
+        comprehensiveGroup.style.display = 'none';
+        mctsGroup.style.display = 'block';
         weightHelp.style.display = 'none';
     } else {
         weightGroup.style.display = 'none';
         comprehensiveGroup.style.display = 'none';
+        mctsGroup.style.display = 'none';
         weightHelp.style.display = 'none';
     }
 
@@ -1016,38 +1043,37 @@ function updatePityStart(val) { state.pityStart = parseInt(val) || 3; updateAnal
 function updatePityMax(val) { state.pityMax = parseInt(val) || 5; updateAnalysis(); }
 function updateAlgorithm(val) {
     state.currentAlgorithm = val;
-    // 移除autoAlgorithm相关逻辑，因为不再有动态切换
-    state.autoAlgorithm = false;
-    document.getElementById('autoAlgorithm').checked = false;
     
     const weightGroup = document.getElementById('weightParamGroup');
     const autoWeightGroup = document.getElementById('autoWeightGroup');
     const comprehensiveGroup = document.getElementById('comprehensiveParamGroup');
+    const mctsGroup = document.getElementById('mctsParamGroup');
     const weightHelp = document.getElementById('weightHelp');
     
     if (val === 'heuristic') {
         weightGroup.style.display = 'flex';
         autoWeightGroup.style.display = 'flex';
         comprehensiveGroup.style.display = 'none';
+        mctsGroup.style.display = 'none';
         weightHelp.style.display = 'block';
     } else if (val === 'comprehensive') {
         weightGroup.style.display = 'none';
         autoWeightGroup.style.display = 'none';
         comprehensiveGroup.style.display = 'block';
+        mctsGroup.style.display = 'none';
+        weightHelp.style.display = 'none';
+    } else if (val === 'mcts' || val === 'fastMCTS') {
+        weightGroup.style.display = 'none';
+        autoWeightGroup.style.display = 'none';
+        comprehensiveGroup.style.display = 'none';
+        mctsGroup.style.display = 'block';
         weightHelp.style.display = 'none';
     } else {
         weightGroup.style.display = 'none';
         autoWeightGroup.style.display = 'none';
         comprehensiveGroup.style.display = 'none';
+        mctsGroup.style.display = 'none';
         weightHelp.style.display = 'none';
-    }
-    updateAnalysis();
-}
-function toggleAutoAlgorithm(checked) {
-    state.autoAlgorithm = checked;
-    if (checked) {
-        document.getElementById('algorithmSelect').value = 'auto';
-        state.currentAlgorithm = 'auto';
     }
     updateAnalysis();
 }
@@ -1080,8 +1106,14 @@ function updateComprehensiveAlgorithms() {
     state.comprehensiveAlgorithms = {
         greedy: document.getElementById('compGreedy').checked,
         heuristic: document.getElementById('compHeuristic').checked,
-        entropy: document.getElementById('compEntropy').checked
+        entropy: document.getElementById('compEntropy').checked,
+        mcts: document.getElementById('compMCTS').checked
     };
+    updateAnalysis();
+}
+
+function updateMCTSIterations(val) {
+    state.mctsIterations = parseInt(val) || 200;
     updateAnalysis();
 }
 
@@ -1420,7 +1452,8 @@ const Algorithms = {
             selectedAlgorithms = {
                 greedy: true,
                 heuristic: true,
-                entropy: true
+                entropy: true,
+                mcts: false
             };
         }
         
@@ -1445,6 +1478,12 @@ const Algorithms = {
             const entropyMap = new Map();
             entropyScores.forEach(s => entropyMap.set(s.i, s.score));
             algorithmMaps.push(entropyMap);
+        }
+        if (selectedAlgorithms.mcts) {
+            const mctsScores = this.fastMCTS(p, grid, 50); // 使用较少的迭代次数
+            const mctsMap = new Map();
+            mctsScores.forEach(s => mctsMap.set(s.i, s.score));
+            algorithmMaps.push(mctsMap);
         }
         
         // 如果没有选择任何算法，返回空数组
@@ -1472,6 +1511,134 @@ const Algorithms = {
         }
         
         return scores;
+    },
+    
+    // 蒙特卡洛树搜索（完整版）
+    mcts: function(p, grid, iterations = null) {
+        // 如果未指定迭代次数，使用默认值
+        if (iterations === null) {
+            iterations = state.mctsIterations || 200;
+        }
+        
+        // 快速蒙特卡洛模拟
+        return this.fastMCTS(p, grid, iterations);
+    },
+    
+    // 快速蒙特卡洛搜索
+    fastMCTS: function(p, grid, iterations = 200) {
+        const scores = Array(49).fill(0);
+        const visits = Array(49).fill(0);
+        
+        // 辅助函数：根据概率选择事件类型
+        const chooseEventByProbability = (probs) => {
+            const rand = Math.random() * 100;
+            let accum = 0;
+            for (let i = 0; i < 7; i++) {
+                accum += probs[i];
+                if (rand <= accum) return i + 1;
+            }
+            return 7;
+        };
+        
+        // 辅助函数：应用事件到网格
+        const applyEventToGrid = (type, idx, currentGrid) => {
+            const r = Math.floor(idx / 7), c = idx % 7;
+            const mark = (row, col) => {
+                if (row >= 0 && row < 7 && col >= 0 && col < 7) {
+                    currentGrid[row * 7 + col] = true;
+                }
+            };
+            
+            if (type === 1) {
+                mark(r, c);
+            } else if (type === 2) {
+                for (let i = 0; i < 7; i++) mark(i, c);
+            } else if (type === 3) {
+                for (let i = 0; i < 7; i++) mark(r, i);
+            } else if (type === 4) {
+                for (let i = 0; i < 7; i++) { mark(i, c); mark(r, i); }
+            } else if (type === 5) {
+                mark(r, c); 
+                if (r-1 >= 0) mark(r-1, c);
+                if (r+1 < 7) mark(r+1, c);
+                if (c-1 >= 0) mark(r, c-1);
+                if (c+1 < 7) mark(r, c+1);
+            } else if (type === 6) {
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        mark(r+i, c+j);
+                    }
+                }
+            } else if (type === 7) {
+                for (let i = 0; i < 49; i++) currentGrid[i] = true;
+            }
+        };
+        
+        // 快速模拟函数
+        const fastSimulate = (startGrid, firstAction) => {
+            let grid = [...startGrid];
+            let steps = 0;
+            
+            // 第一步使用指定的行动
+            if (firstAction !== null) {
+                const eventType = chooseEventByProbability(p.map(prob => prob * 100));
+                applyEventToGrid(eventType, firstAction, grid);
+                steps++;
+            }
+            
+            // 后续步骤随机选择，最多模拟10步
+            while (steps < 10 && grid.some(cell => !cell)) {
+                const unopened = [];
+                for (let i = 0; i < 49; i++) {
+                    if (!grid[i]) unopened.push(i);
+                }
+                if (unopened.length === 0) break;
+                
+                const randomAction = unopened[Math.floor(Math.random() * unopened.length)];
+                const eventType = chooseEventByProbability(p.map(prob => prob * 100));
+                applyEventToGrid(eventType, randomAction, grid);
+                steps++;
+            }
+            
+            // 奖励：开启的格子数越多越好，步数越少越好
+            const opened = grid.filter(cell => cell).length;
+            return opened * 2 - steps;
+        };
+        
+        // 运行多次模拟
+        for (let iter = 0; iter < iterations; iter++) {
+            // 对每个未开启的格子进行采样
+            for (let i = 0; i < 49; i++) {
+                if (!grid[i]) {
+                    const reward = fastSimulate(grid, i);
+                    scores[i] += reward;
+                    visits[i]++;
+                }
+            }
+        }
+        
+        // 计算平均分数
+        const result = [];
+        for (let i = 0; i < 49; i++) {
+            if (!grid[i] && visits[i] > 0) {
+                result.push({ 
+                    i, 
+                    score: scores[i] / visits[i] 
+                });
+            }
+        }
+        
+        // 如果没有结果，返回空数组
+        if (result.length === 0) {
+            // 返回所有未开启格子的默认分数
+            for (let i = 0; i < 49; i++) {
+                if (!grid[i]) {
+                    result.push({ i, score: 50 });
+                }
+            }
+        }
+        
+        return result;
     }
 };
 
@@ -1963,7 +2130,9 @@ function updateAnalysis() {
         greedy: Algorithms.greedy(p, state.grid),
         heuristic: Algorithms.heuristic(p, state.grid, state.heuristicWeight),
         entropy: Algorithms.entropy(p, state.grid),
-        comprehensive: Algorithms.comprehensive(p, state.grid, state.heuristicWeight, state.comprehensiveAlgorithms)
+        comprehensive: Algorithms.comprehensive(p, state.grid, state.heuristicWeight, state.comprehensiveAlgorithms),
+        mcts: Algorithms.mcts(p, state.grid, state.mctsIterations),
+        fastMCTS: Algorithms.fastMCTS(p, state.grid, Math.min(state.mctsIterations || 200, 100))
     };
     
     // 计算每个算法的总分
@@ -2033,6 +2202,10 @@ function updateAnalysis() {
         displayScores = normalizedScores.entropy;
     } else if (currentAlgorithm === 'comprehensive') {
         displayScores = normalizedScores.comprehensive;
+    } else if (currentAlgorithm === 'mcts') {
+        displayScores = normalizedScores.mcts;
+    } else if (currentAlgorithm === 'fastMCTS') {
+        displayScores = normalizedScores.fastMCTS;
     } else {
         // 默认使用综合推荐
         displayScores = normalizedScores.comprehensive;

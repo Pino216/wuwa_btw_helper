@@ -112,30 +112,23 @@
             display: flex; 
             flex-direction: column; 
             align-items: center; 
-            justify-content: center;
-            width: 100%;
-            min-height: 500px;
-            padding: 10px;
+            max-width: 600px;
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            grid-template-rows: repeat(7, 1fr);
-            gap: 6px;
+            grid-template-columns: repeat(7, 60px);
+            gap: var(--grid-gap);
             background: var(--card-bg);
             padding: 20px;
             border-radius: 16px;
             box-shadow: 0 15px 40px rgba(0,0,0,0.1);
             position: relative;
             z-index: 1;
-            width: 100%;
-            max-width: 500px;
-            min-width: 300px;
-            aspect-ratio: 1;
-            margin: 0 auto;
         }
 
         .cell {
+            width: 60px; 
+            height: 60px;
             background: #f8f9fa;
             border: 1px solid #eee;
             display: flex; 
@@ -147,9 +140,6 @@
             position: relative;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1;
-            width: 100%;
-            height: 100%;
-            min-height: 30px;
         }
 
         /* 隐形水印 */
@@ -163,6 +153,18 @@
             white-space: nowrap;
             pointer-events: none;
             z-index: 10;
+        }
+
+        .cell {
+            width: 55px; height: 55px;
+            background: #f8f9fa;
+            border: 1px solid #eee;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: pointer; border-radius: 8px;
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1;
         }
 
         .cell:hover:not(.opened) { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: var(--accent); }
@@ -294,15 +296,11 @@
         @media screen and (max-width: 768px) {
             body {
                 padding: 10px;
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
             }
             .layout { 
                 flex-direction: column; 
                 align-items: center;
                 gap: 10px;
-                flex: 1;
             }
             .config-panel {
                 position: relative; 
@@ -314,15 +312,15 @@
                 height: auto;
                 border-radius: 12px;
                 max-width: 100%;
-                min-height: auto !important;
-                max-height: none !important;
+                min-height: auto !important; /* 覆盖桌面端的最小高度 */
+                max-height: none !important; /* 覆盖桌面端的最大高度 */
                 overflow-y: visible !important;
             }
             .config-panel.collapsed {
                 height: auto; 
                 width: 100% !important; 
                 padding: 15px;
-                min-height: auto !important;
+                min-height: auto !important; /* 覆盖桌面端的最小高度 */
                 max-height: none !important;
                 overflow: hidden;
                 display: flex;
@@ -330,18 +328,18 @@
                 align-items: center;
             }
             .toggle-btn {
-                position: relative;
+                position: relative; /* 覆盖桌面端的绝对定位 */
                 right: auto; 
                 top: auto;
                 transform: none;
-                width: 50px;
+                width: 50px; /* 圆形按钮 */
                 height: 50px;
                 border-radius: 50%;
                 background: var(--accent);
                 color: white;
                 font-weight: bold;
                 font-size: 18px;
-                margin: 0 auto 10px auto;
+                margin: 0 auto 10px auto; /* 居中 */
                 box-shadow: 0 4px 12px rgba(30, 144, 255, 0.3);
                 display: flex;
                 align-items: center;
@@ -353,30 +351,17 @@
             }
             .grid-area {
                 max-width: 100%;
-                width: 100%;
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                padding: 5px;
-                min-height: 400px;
             }
             .grid {
-                grid-template-columns: repeat(7, 1fr);
-                grid-template-rows: repeat(7, 1fr);
+                grid-template-columns: repeat(7, 12vw);
                 gap: 3px;
-                padding: 10px;
+                padding: 8px;
                 border-radius: 12px;
-                width: 100%;
-                max-width: 95vw;
-                aspect-ratio: 1;
-                margin: 0 auto;
             }
             .cell { 
-                width: 100%;
-                height: 100%;
+                width: 12vw; 
+                height: 12vw; 
                 border-radius: 6px;
-                min-height: 20px;
             }
             .cell .coord { 
                 font-size: 7px; 
@@ -403,10 +388,6 @@
                 padding: 8px;
                 font-size: 12px;
                 border-radius: 8px;
-                width: 100%;
-                max-width: 95vw;
-                margin-left: auto;
-                margin-right: auto;
             }
             .prob-input-group {
                 font-size: 12px;
@@ -451,18 +432,14 @@
         /* 超小屏幕适配 */
         @media screen and (max-width: 360px) {
             .grid {
-                grid-template-columns: repeat(7, 1fr);
-                grid-template-rows: repeat(7, 1fr);
+                grid-template-columns: repeat(7, 10vw);
                 gap: 2px;
                 padding: 6px;
-                max-width: 95vw;
-                aspect-ratio: 1;
             }
             .cell { 
-                width: 100%;
-                height: 100%;
+                width: 10vw; 
+                height: 10vw; 
                 border-radius: 4px;
-                min-height: 15px;
             }
             .cell .coord { 
                 font-size: 6px; 
@@ -564,12 +541,7 @@
                     </div>
                     <div class="prob-input-group" id="weightParamGroup" style="display:none;">
                         <label>探索权重 (w)</label>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <input type="number" id="heuristicWeight" value="1.0" step="0.1" min="0.1" max="5.0" onchange="updateHeuristicWeight(this.value)" style="width:60px; padding:4px; border:1px solid #ddd; border-radius:4px;">
-                            <label style="font-size:11px; display:flex; align-items:center; white-space:nowrap;">
-                                <input type="checkbox" id="autoWeight" checked onchange="toggleAutoWeight(this.checked)"> 自动
-                            </label>
-                        </div>
+                        <input type="number" id="heuristicWeight" value="1.0" step="0.1" min="0.1" max="5.0" onchange="updateHeuristicWeight(this.value)" style="width:60px; padding:4px; border:1px solid #ddd; border-radius:4px;">
                     </div>
                     <div id="comprehensiveParamGroup" style="display:none; margin-top:10px;">
                         <div style="font-size:12px; margin-bottom:5px; color:#666; font-weight:bold;">参与综合的算法：</div>
@@ -586,8 +558,7 @@
                         </div>
                     </div>
                     <div id="weightHelp" style="display:none; font-size:11px; color:#666; margin-top:8px; padding:8px; background:#fff; border-radius:6px; border:1px dashed #ddd;">
-                        <b>探索权重说明：</b> w值越大，算法越倾向于选择周围未开格子多的位置（探索），w值越小则越关注当前格子直接收益（利用）。<br>
-                        <span id="autoWeightStatus">当前：自动调整（根据游戏阶段动态变化）</span>
+                        <b>探索权重说明：</b> w值越大，算法越倾向于选择周围未开格子多的位置（探索），w值越小则越关注当前格子直接收益（利用）。推荐值：1.0-2.0。
                     </div>
                 </div>
                 <div style="font-size:11px; color:#666; margin-top:8px; padding:8px; background:rgba(255,255,255,0.7); border-radius:6px;">
@@ -668,8 +639,7 @@ const defaultData = {
     currentMisses: 0,
     currentAlgorithm: 'greedy',
     heuristicWeight: 1.0,
-    autoAlgorithm: false,
-    autoWeight: true
+    autoAlgorithm: false
 };
 
 let state = loadState();
@@ -771,13 +741,8 @@ function init() {
     
     // 渲染算法选择
     document.getElementById('algorithmSelect').value = state.currentAlgorithm;
-    document.getElementById('heuristicWeight').value = state.heuristicWeight.toFixed(1);
+    document.getElementById('heuristicWeight').value = state.heuristicWeight;
     document.getElementById('autoAlgorithm').checked = false; // 不再使用
-    
-    // 初始化自动权重开关
-    if (state.autoWeight === undefined) state.autoWeight = true;
-    document.getElementById('autoWeight').checked = state.autoWeight;
-    toggleAutoWeight(state.autoWeight);
     
     // 初始化综合推荐算法选择
     if (!state.comprehensiveAlgorithms) {
@@ -903,35 +868,8 @@ function toggleAutoAlgorithm(checked) {
 }
 
 function updateHeuristicWeight(val) {
-    // 如果启用了自动权重，不允许手动修改
-    if (state.autoWeight !== false) {
-        // 恢复显示值
-        document.getElementById('heuristicWeight').value = state.heuristicWeight.toFixed(1);
-        return;
-    }
     state.heuristicWeight = parseFloat(val) || 1.0;
     updateAnalysis();
-}
-
-function toggleAutoWeight(checked) {
-    state.autoWeight = checked;
-    const weightInput = document.getElementById('heuristicWeight');
-    const statusSpan = document.getElementById('autoWeightStatus');
-    
-    if (checked) {
-        // 启用自动权重，输入框变灰
-        weightInput.disabled = true;
-        weightInput.style.backgroundColor = '#f5f5f5';
-        statusSpan.textContent = '当前：自动调整（根据游戏阶段动态变化）';
-        // 根据当前状态重新计算权重
-        updateAnalysis();
-    } else {
-        // 禁用自动权重，输入框可用
-        weightInput.disabled = false;
-        weightInput.style.backgroundColor = 'white';
-        statusSpan.textContent = '当前：手动调整';
-    }
-    saveState();
 }
 
 function updateComprehensiveAlgorithms() {
@@ -1509,24 +1447,27 @@ function updateAnalysis() {
     window.lastStage = stage;
     
     // 动态调整启发式权重：前期权重较高，后期降低
-    // 只有在启用自动权重时才调整
-    if (state.autoWeight !== false) {
-        if (stage === "前期") {
-            // 前期：探索更重要，权重较高（1.5-2.0）
-            state.heuristicWeight = 1.8;
-        } else if (stage === "中期") {
-            // 中期：平衡探索与利用（1.0-1.5）
-            state.heuristicWeight = 1.2;
-        } else {
-            // 后期：更注重利用（0.5-1.0）
-            state.heuristicWeight = 0.7;
-        }
-        
-        // 更新权重输入框显示
-        const weightInput = document.getElementById('heuristicWeight');
-        if (weightInput) {
-            weightInput.value = state.heuristicWeight.toFixed(1);
-        }
+    if (stage === "前期") {
+        // 前期：探索更重要，权重较高（1.5-2.0）
+        state.heuristicWeight = Math.max(1.5, Math.min(2.0, 
+            state.heuristicWeight || 1.5
+        ));
+    } else if (stage === "中期") {
+        // 中期：平衡探索与利用（1.0-1.5）
+        state.heuristicWeight = Math.max(1.0, Math.min(1.5,
+            state.heuristicWeight || 1.0
+        ));
+    } else {
+        // 后期：更注重利用（0.5-1.0）
+        state.heuristicWeight = Math.max(0.5, Math.min(1.0,
+            state.heuristicWeight || 0.8
+        ));
+    }
+    
+    // 更新权重输入框显示
+    const weightInput = document.getElementById('heuristicWeight');
+    if (weightInput) {
+        weightInput.value = state.heuristicWeight.toFixed(1);
     }
     
     // 处理算法选择逻辑

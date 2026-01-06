@@ -906,21 +906,38 @@ const Algorithms = {
             }
             g += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
             
-            // 启发式函数 h(n)：潜在覆盖率
-            // 计算该格子周围未开启格子的数量（3x3区域）
-            let h = 0;
+            // 改进的启发式函数 h(n)：考虑更全面的探索价值
+            // 1. 周围未开启格子数量（3x3区域）
+            let h_local = 0;
             for(let dr=-1;dr<=1;dr++) {
                 for(let dc=-1;dc<=1;dc++) {
                     let nr=r+dr, nc=c+dc;
                     if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) {
-                        h++;
+                        h_local++;
                     }
                 }
             }
-            // 归一化 h 到 0-1 范围（最大9）
-            h = h / 9;
+            // 2. 行列潜在收益：该格子所在行和列的未开启格子数
+            let row_unopened = 0;
+            let col_unopened = 0;
+            for(let j=0; j<7; j++) {
+                if(!grid[r*7+j]) row_unopened++;
+                if(!grid[j*7+c]) col_unopened++;
+            }
+            // 3. 综合启发式值：加权组合
+            // 归一化：h_local最大9，row_unopened和col_unopened最大7
+            const h_local_norm = h_local / 9;
+            const row_norm = row_unopened / 7;
+            const col_norm = col_unopened / 7;
             
-            const f = g + weight * h;
+            // 综合启发式值：更注重局部探索，但也考虑行列潜力
+            const h = h_local_norm * 0.6 + row_norm * 0.2 + col_norm * 0.2;
+            
+            // 调整权重应用：当g值较大时，权重影响应相对减小
+            const g_normalized = g / 100; // 估计g的最大值大约在100左右
+            const adjusted_weight = weight * (1 - Math.min(g_normalized, 0.5));
+            
+            const f = g + adjusted_weight * h * 50; // 乘以50以匹配g的尺度
             scores.push({ i, score: f });
         }
         return scores;
@@ -930,6 +947,7 @@ const Algorithms = {
     entropy: function(p, grid) {
         let scores = [];
         
+        // 首先，计算每个格子的孤立度
         for (let i = 0; i < 49; i++) {
             const r = Math.floor(i / 7), c = i % 7;
             if (grid[i]) continue;
@@ -952,24 +970,46 @@ const Algorithms = {
             }
             g += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
             
-            // 计算周围未开启邻居的数量（4连通）
+            // 计算周围未开启邻居的数量（8连通，包括对角线）
             let neighborCount = 0;
-            const neighbors = [
-                [r-1, c], [r+1, c], [r, c-1], [r, c+1]
-            ];
-            for (let [nr, nc] of neighbors) {
-                if (nr>=0 && nr<7 && nc>=0 && nc<7 && !grid[nr*7+nc]) {
-                    neighborCount++;
+            for(let dr=-1;dr<=1;dr++) {
+                for(let dc=-1;dc<=1;dc++) {
+                    if(dr===0 && dc===0) continue;
+                    let nr=r+dr, nc=c+dc;
+                    if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) {
+                        neighborCount++;
+                    }
                 }
             }
             
-            // 孤立度分数：邻居越少，分数越高（优先选择孤立格子）
-            // 最大邻居数是4，所以孤立度 = (4 - neighborCount) / 4
-            const isolationScore = (4 - neighborCount) / 4;
+            // 计算孤立度：邻居越少，孤立度越高
+            // 最大邻居数是8
+            const isolationScore = (8 - neighborCount) / 8;
             
-            // 最终分数 = 基础收益 + 孤立度权重
-            // 给孤立度一个较大的权重，确保优先清理孤岛
-            const score = g + isolationScore * 50;
+            // 计算区域密度：周围3x3区域内未开启格子的比例
+            let areaUnopened = 0;
+            let areaTotal = 0;
+            for(let dr=-1;dr<=1;dr++) {
+                for(let dc=-1;dc<=1;dc++) {
+                    let nr=r+dr, nc=c+dc;
+                    if(nr>=0&&nr<7&&nc>=0&&nc<7) {
+                        areaTotal++;
+                        if(!grid[nr*7+nc]) areaUnopened++;
+                    }
+                }
+            }
+            const densityScore = areaUnopened / areaTotal;
+            
+            // 最终分数 = 基础收益 + 孤立度权重 + 密度权重
+            // 调整权重：在游戏后期，更注重清理孤立格子
+            const totalUnopened = grid.filter(v=>!v).length;
+            const gamePhase = totalUnopened / 49; // 0-1，越小表示越后期
+            
+            // 后期时增加孤立度权重
+            const isolationWeight = 80 * (1 - gamePhase);
+            const densityWeight = 30 * gamePhase;
+            
+            const score = g + isolationScore * isolationWeight + densityScore * densityWeight;
             scores.push({ i, score: score });
         }
         return scores;
@@ -1151,33 +1191,49 @@ function updateAnalysis() {
         if (!state.grid[i]) unopened++;
     }
     
-    // 判断阶段并确定推荐算法（带滞后区间）
+    // 判断阶段并确定推荐算法（基于实际表现优化）
     let stage, recommendedAlgorithm;
     
-    // 滞后区间：切换阈值上下浮动2个格子，避免频繁切换
     // 上次阶段记录
     if (!window.lastStage) window.lastStage = '';
     
-    // 根据未开启格子数判断阶段
-    if (unopened > 37) { // 从35提高到37（进入前期的门槛更高）
+    // 根据未开启格子数判断阶段（优化后的阈值）
+    // 前期：大量未开启格子，需要探索
+    if (unopened > 30) { // 降低阈值，让启发式算法更早介入
         stage = "前期";
         recommendedAlgorithm = "heuristic";
-    } else if (unopened > 35 && window.lastStage === "前期") {
-        // 如果上次是前期，且格子数在35-37之间，保持前期（滞后效果）
-        stage = "前期";
-        recommendedAlgorithm = "heuristic";
-    } else if (unopened >= 17) { // 从15提高到17（进入中期的门槛更高）
+    } 
+    // 中期：中等数量格子，平衡探索与利用
+    else if (unopened >= 10) {
         stage = "中期";
-        recommendedAlgorithm = "greedy";
-    } else if (unopened >= 15 && window.lastStage === "中期") {
-        // 如果上次是中期，且格子数在15-17之间，保持中期
-        stage = "中期";
-        recommendedAlgorithm = "greedy";
-    } else if (unopened >= 13) { // 从<15改为>=13（进入后期的门槛更高）
+        // 在中期，根据格子分布决定使用贪心还是启发式
+        // 计算孤立格子数量
+        let isolatedCount = 0;
+        for (let i = 0; i < 49; i++) {
+            if (state.grid[i]) continue;
+            const r = Math.floor(i / 7), c = i % 7;
+            let neighborCount = 0;
+            for(let dr=-1;dr<=1;dr++) {
+                for(let dc=-1;dc<=1;dc++) {
+                    if(dr===0 && dc===0) continue;
+                    let nr=r+dr, nc=c+dc;
+                    if(nr>=0&&nr<7&&nc>=0&&nc<7 && !state.grid[nr*7+nc]) {
+                        neighborCount++;
+                    }
+                }
+            }
+            if (neighborCount <= 2) isolatedCount++;
+        }
+        // 如果孤立格子较多，使用熵减算法
+        if (isolatedCount > unopened * 0.3) {
+            recommendedAlgorithm = "entropy";
+        } else {
+            recommendedAlgorithm = "greedy";
+        }
+    } 
+    // 后期：少量格子，优先清理孤立格子
+    else {
         stage = "后期";
-        recommendedAlgorithm = "entropy";
-    } else {
-        stage = "末期";
         recommendedAlgorithm = "entropy";
     }
     

@@ -612,27 +612,50 @@ function toggleConfig() {
 
 function loadState() {
     const saved = localStorage.getItem(STORAGE_KEY);
-    const loaded = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultData));
-    // 确保所有字段都存在
-    return {
-        ...JSON.parse(JSON.stringify(defaultData)),
-        ...loaded,
+    if (!saved) {
+        return JSON.parse(JSON.stringify(defaultData));
+    }
+    
+    try {
+        const loaded = JSON.parse(saved);
+        // 确保所有字段都存在，使用默认值填充缺失字段
+        const result = {
+            ...JSON.parse(JSON.stringify(defaultData)),
+            ...loaded
+        };
+        
         // 确保数组是新的引用
-        grid: loaded.grid || [...defaultData.grid],
-        probs: loaded.probs || [...defaultData.probs],
-        clicks: loaded.clicks || 0,
-        enablePity: loaded.enablePity !== undefined ? loaded.enablePity : defaultData.enablePity,
-        pityStart: loaded.pityStart || defaultData.pityStart,
-        pityMax: loaded.pityMax || defaultData.pityMax,
-        currentMisses: loaded.currentMisses || 0,
-        currentAlgorithm: loaded.currentAlgorithm || defaultData.currentAlgorithm,
-        heuristicWeight: loaded.heuristicWeight || defaultData.heuristicWeight
-    };
+        result.grid = Array.isArray(loaded.grid) ? [...loaded.grid] : [...defaultData.grid];
+        result.probs = Array.isArray(loaded.probs) ? [...loaded.probs] : [...defaultData.probs];
+        
+        // 确保数值字段正确
+        result.clicks = Number.isInteger(loaded.clicks) ? loaded.clicks : defaultData.clicks;
+        result.enablePity = typeof loaded.enablePity === 'boolean' ? loaded.enablePity : defaultData.enablePity;
+        result.pityStart = Number.isInteger(loaded.pityStart) ? loaded.pityStart : defaultData.pityStart;
+        result.pityMax = Number.isInteger(loaded.pityMax) ? loaded.pityMax : defaultData.pityMax;
+        result.currentMisses = Number.isInteger(loaded.currentMisses) ? loaded.currentMisses : defaultData.currentMisses;
+        result.currentAlgorithm = typeof loaded.currentAlgorithm === 'string' ? loaded.currentAlgorithm : defaultData.currentAlgorithm;
+        result.heuristicWeight = typeof loaded.heuristicWeight === 'number' ? loaded.heuristicWeight : defaultData.heuristicWeight;
+        result.autoAlgorithm = typeof loaded.autoAlgorithm === 'boolean' ? loaded.autoAlgorithm : defaultData.autoAlgorithm;
+        
+        // 确保grid长度正确
+        if (result.grid.length !== 49) {
+            result.grid = Array(49).fill(false);
+        }
+        
+        return result;
+    } catch (e) {
+        console.error('加载状态失败，使用默认值:', e);
+        return JSON.parse(JSON.stringify(defaultData));
+    }
 }
 
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
 function init() {
+    // 确保状态正确加载
+    state = loadState();
+    
     // 渲染输入框
     const probContainer = document.getElementById('probInputs');
     probContainer.innerHTML = '';
@@ -641,7 +664,7 @@ function init() {
     labels.forEach((label, i) => {
         const div = document.createElement('div');
         div.className = 'prob-input-group';
-        div.innerHTML = `<label>${label}</label><input type="number" id="p${i}" value="${state.probs[i]}" onchange="updateProbs(${i}, this.value)">`;
+        div.innerHTML = `<label>${label}</label><input type="number" id="p${i}" value="${state.probs[i]}" onchange="updateProbs(${i}, this.value)" min="0" max="100">`;
         probContainer.appendChild(div);
     });
 
@@ -655,9 +678,17 @@ function init() {
     document.getElementById('algorithmSelect').value = state.currentAlgorithm;
     document.getElementById('heuristicWeight').value = state.heuristicWeight;
     document.getElementById('autoAlgorithm').checked = state.autoAlgorithm;
+    
     // 根据算法显示/隐藏权重参数
     const weightGroup = document.getElementById('weightParamGroup');
-    weightGroup.style.display = state.currentAlgorithm === 'weighted' ? 'flex' : 'none';
+    const weightHelp = document.getElementById('weightHelp');
+    if (state.currentAlgorithm === 'weighted') {
+        weightGroup.style.display = 'flex';
+        weightHelp.style.display = 'block';
+    } else {
+        weightGroup.style.display = 'none';
+        weightHelp.style.display = 'none';
+    }
 
     // 渲染网格
     const gridEl = document.getElementById('grid');
@@ -682,6 +713,16 @@ function init() {
         btn.onclick = () => applyEvent(i + 1);
         menuBtns.appendChild(btn);
     });
+    
+    // 初始化折叠按钮状态
+    const isMobile = window.innerWidth <= 768;
+    const btn = document.getElementById('toggleBtn');
+    if (isMobile) {
+        btn.innerHTML = '🔼';
+    } else {
+        btn.innerHTML = '◀';
+    }
+    
     updateAnalysis();
 }
 
@@ -1102,12 +1143,23 @@ function updateAnalysis() {
         recommendedAlgorithm = "entropy";
     }
     
-    // 如果启用了智能自动切换，则使用推荐算法
+    // 处理算法选择逻辑
     let currentAlgorithm = state.currentAlgorithm;
-    if (state.autoAlgorithm || currentAlgorithm === 'auto') {
+    const algorithmSelect = document.getElementById('algorithmSelect');
+    
+    // 如果启用了智能自动切换，则使用推荐算法
+    if (state.autoAlgorithm) {
         currentAlgorithm = recommendedAlgorithm;
-        // 更新下拉菜单显示
-        document.getElementById('algorithmSelect').value = 'auto';
+        // 确保下拉菜单显示为'auto'
+        if (algorithmSelect.value !== 'auto') {
+            algorithmSelect.value = 'auto';
+        }
+    } else {
+        // 如果当前算法是'auto'但未启用自动切换，则切换到推荐算法
+        if (currentAlgorithm === 'auto') {
+            currentAlgorithm = recommendedAlgorithm;
+            algorithmSelect.value = recommendedAlgorithm;
+        }
     }
     
     // 动态概率调整
@@ -1143,13 +1195,16 @@ function updateAnalysis() {
         scores = Algorithms.weighted(p, state.grid, state.heuristicWeight);
     } else if (currentAlgorithm === 'entropy') {
         scores = Algorithms.entropy(p, state.grid);
+    } else {
+        // 默认使用贪心算法
+        scores = Algorithms.greedy(p, state.grid);
+        currentAlgorithm = 'greedy';
     }
     
     // 更新算法下拉菜单的呼吸灯特效
-    const algorithmSelect = document.getElementById('algorithmSelect');
     algorithmSelect.classList.remove('algorithm-pulse');
     // 如果启用了智能自动切换，为推荐算法添加呼吸灯
-    if (state.autoAlgorithm || state.currentAlgorithm === 'auto') {
+    if (state.autoAlgorithm) {
         algorithmSelect.classList.add('algorithm-pulse');
     }
     
@@ -1162,15 +1217,23 @@ function updateAnalysis() {
         const scoreObj = scores.find(s => s.i === i);
         if (scoreObj) {
             document.getElementById(`s-${i}`).innerText = scoreObj.score.toFixed(1);
+        } else {
+            document.getElementById(`s-${i}`).innerText = '0';
         }
     }
 
     if(scores.length > 0){
         const max = Math.max(...scores.map(s => s.score));
-        scores.forEach(s => {
-            if(s.score === max && max > 0) document.getElementById(`cell-${s.i}`).classList.add('best');
-            else if(s.score > max * 0.8 && max > 0) document.getElementById(`cell-${s.i}`).classList.add('good');
-        });
+        // 确保max是有效的数字
+        if (isFinite(max) && max > 0) {
+            scores.forEach(s => {
+                if(s.score === max) {
+                    document.getElementById(`cell-${s.i}`).classList.add('best');
+                } else if(s.score > max * 0.8) {
+                    document.getElementById(`cell-${s.i}`).classList.add('good');
+                }
+            });
+        }
     }
 
     if (unopened === 0 && state.clicks > 0) {
@@ -1178,10 +1241,12 @@ function updateAnalysis() {
         document.getElementById('winMessage').innerText = `已锁定全图坐标！本轮共反馈 ${state.clicks} 次。`;
         localStorage.removeItem(STORAGE_KEY);
     }
+    
     // 更新状态栏，显示阶段和推荐算法
+    const algorithmDisplay = state.autoAlgorithm ? '智能' : currentAlgorithm;
     const statusText = window.innerWidth <= 768 
-        ? `剩余:${unopened} 阶段:${stage} 算法:${currentAlgorithm}`
-        : `剩余: ${unopened} | 阶段: ${stage} | 算法: ${currentAlgorithm}${state.autoAlgorithm ? ' (智能)' : ''} | 点击: ${state.clicks}`;
+        ? `剩余:${unopened} 阶段:${stage} 算法:${algorithmDisplay}`
+        : `剩余: ${unopened} | 阶段: ${stage} | 算法: ${algorithmDisplay}${state.autoAlgorithm ? ' (自动)' : ''} | 点击: ${state.clicks}`;
     document.getElementById('statusBar').innerText = statusText;
     saveState();
 }

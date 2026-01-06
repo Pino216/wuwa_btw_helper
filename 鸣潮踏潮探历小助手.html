@@ -201,6 +201,26 @@
             <h3 style="margin-top:0; font-size:16px;">⚙️ 概率权重</h3>
             <div id="probInputs"></div>
             <div id="probWarning" style="font-size: 12px; margin: 8px 0;"></div>
+            
+            <h3 style="margin-top:20px; font-size:16px;">🎯 保底系统</h3>
+            <div style="margin-bottom:10px;">
+                <div class="prob-input-group">
+                    <label>启用保底</label>
+                    <input type="checkbox" id="enablePity" onchange="updatePityEnable(this.checked)" style="width:auto;" ${state.enablePity ? 'checked' : ''}>
+                </div>
+                <div class="prob-input-group">
+                    <label>保底起始 (X)</label>
+                    <input type="number" id="pityStart" value="${state.pityStart}" onchange="updatePityStart(this.value)" min="1" max="20">
+                </div>
+                <div class="prob-input-group">
+                    <label>保底上限 (Y)</label>
+                    <input type="number" id="pityMax" value="${state.pityMax}" onchange="updatePityMax(this.value)" min="2" max="50">
+                </div>
+                <div style="font-size:11px; color:#888; margin-top:5px;">
+                    当前未触发计数: <span id="currentMissesDisplay">${state.currentMisses}</span>
+                </div>
+            </div>
+            
             <button class="btn-reset" onclick="confirmReset()">🔄 重置进度</button>
         </div>
     </div>
@@ -231,7 +251,11 @@ const STORAGE_KEY = 'MC_EVENT_HELPER_V1.2_MOBILE';
 const defaultData = {
     grid: Array(size * size).fill(false),
     probs: [33, 14, 14, 7, 18, 13, 1],
-    clicks: 0
+    clicks: 0,
+    enablePity: true,
+    pityStart: 3,
+    pityMax: 10,
+    currentMisses: 0
 };
 
 let state = loadState();
@@ -254,7 +278,20 @@ function toggleConfig() {
 
 function loadState() {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultData));
+    const loaded = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultData));
+    // 确保所有字段都存在
+    return {
+        ...JSON.parse(JSON.stringify(defaultData)),
+        ...loaded,
+        // 确保数组是新的引用
+        grid: loaded.grid || [...defaultData.grid],
+        probs: loaded.probs || [...defaultData.probs],
+        clicks: loaded.clicks || 0,
+        enablePity: loaded.enablePity !== undefined ? loaded.enablePity : defaultData.enablePity,
+        pityStart: loaded.pityStart || defaultData.pityStart,
+        pityMax: loaded.pityMax || defaultData.pityMax,
+        currentMisses: loaded.currentMisses || 0
+    };
 }
 
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -271,6 +308,12 @@ function init() {
         div.innerHTML = `<label>${label}</label><input type="number" id="p${i}" value="${state.probs[i]}" onchange="updateProbs(${i}, this.value)">`;
         probContainer.appendChild(div);
     });
+
+    // 渲染保底配置
+    document.getElementById('enablePity').checked = state.enablePity;
+    document.getElementById('pityStart').value = state.pityStart;
+    document.getElementById('pityMax').value = state.pityMax;
+    document.getElementById('currentMissesDisplay').textContent = state.currentMisses;
 
     // 渲染网格
     const gridEl = document.getElementById('grid');
@@ -317,6 +360,9 @@ function playEffect(type) {
 
 // --- 逻辑处理 ---
 function updateProbs(i, val) { state.probs[i] = parseInt(val) || 0; updateAnalysis(); }
+function updatePityEnable(checked) { state.enablePity = checked; updateAnalysis(); }
+function updatePityStart(val) { state.pityStart = parseInt(val) || 3; updateAnalysis(); }
+function updatePityMax(val) { state.pityMax = parseInt(val) || 10; updateAnalysis(); }
 
 function showMenu(r, c, e) {
     if (state.grid[r * 7 + c]) return;
@@ -339,13 +385,19 @@ function applyEvent(type) {
             document.getElementById(`cell-${idx}`).classList.add('opened');
         }
     };
-    if (type === 1) mark(r, c);
-    else if (type === 2) for(let i=0; i<7; i++) mark(i, c);
-    else if (type === 3) for(let i=0; i<7; i++) mark(r, i);
-    else if (type === 4) { for(let i=0; i<7; i++) { mark(i, c); mark(r, i); } }
-    else if (type === 5) { mark(r, c); mark(r-1,c); mark(r+1,c); mark(r,c-1); mark(r,c+1); }
-    else if (type === 6) { for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) mark(r+i, c+j); }
-    else if (type === 7) { state.grid.fill(true); init(); }
+    if (type === 1) {
+        mark(r, c);
+        state.currentMisses++;
+    } else {
+        // 类型 2-7
+        if (type === 2) for(let i=0; i<7; i++) mark(i, c);
+        else if (type === 3) for(let i=0; i<7; i++) mark(r, i);
+        else if (type === 4) { for(let i=0; i<7; i++) { mark(i, c); mark(r, i); } }
+        else if (type === 5) { mark(r, c); mark(r-1,c); mark(r+1,c); mark(r,c-1); mark(r,c+1); }
+        else if (type === 6) { for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) mark(r+i, c+j); }
+        else if (type === 7) { state.grid.fill(true); init(); }
+        state.currentMisses = 0;
+    }
 
     state.clicks++;
     closeMenu();
@@ -355,11 +407,32 @@ function applyEvent(type) {
 function updateAnalysis() {
     let unopened = 0;
     let scores = [];
-    const p = state.probs.map(v => v / 100);
+    
+    // 动态概率调整
+    let adjustedProbs = [...state.probs];
+    if (state.enablePity && state.currentMisses >= state.pityStart) {
+        const progress = Math.min((state.currentMisses - state.pityStart + 1) / (state.pityMax - state.pityStart + 1), 1.0);
+        const factor = 1 + 0.5 * progress; // 最大增加50%
+        
+        // 只调整前6个权重
+        for (let i = 0; i < 6; i++) {
+            adjustedProbs[i] = state.probs[i] * factor;
+        }
+        // 重新归一化到总和100
+        const total = adjustedProbs.reduce((a, b) => a + b, 0);
+        for (let i = 0; i < 7; i++) {
+            adjustedProbs[i] = (adjustedProbs[i] * 100) / total;
+        }
+    }
+    
+    const p = adjustedProbs.map(v => v / 100);
     const totalP = state.probs.reduce((a, b) => a + b, 0);
     const warningEl = document.getElementById('probWarning');
-    warningEl.innerText = `当前总权重: ${totalP}%`;
+    warningEl.innerText = `当前总权重: ${totalP}% | 未触发计数: ${state.currentMisses}`;
     warningEl.style.color = totalP === 100 ? 'var(--primary)' : 'var(--danger)';
+    
+    // 更新显示
+    document.getElementById('currentMissesDisplay').textContent = state.currentMisses;
 
     for (let i = 0; i < 49; i++) {
         const r = Math.floor(i / 7), c = i % 7;
@@ -402,7 +475,7 @@ function updateAnalysis() {
         document.getElementById('winMessage').innerText = `已锁定全图坐标！本轮共反馈 ${state.clicks} 次。`;
         localStorage.removeItem(STORAGE_KEY);
     }
-    document.getElementById('statusBar').innerText = `剩余: ${unopened} | 本局点击: ${state.clicks}`;
+    document.getElementById('statusBar').innerText = `剩余: ${unopened} | 本局点击: ${state.clicks} | 未触发: ${state.currentMisses}`;
     saveState();
 }
 

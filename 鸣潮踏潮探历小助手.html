@@ -36,8 +36,8 @@
         .layout {
             display: flex;
             justify-content: center;
-            gap: 20px;
-            max-width: 1200px;
+            gap: 30px;
+            max-width: 1300px;
             width: 100%;
             transition: all 0.4s ease;
         }
@@ -45,10 +45,10 @@
         /* --- 配置面板 (响应式) --- */
         .config-panel {
             background: var(--card-bg);
-            padding: 20px;
+            padding: 25px;
             border-radius: 16px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            width: 280px;
+            width: 320px;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: sticky;
             top: 20px;
@@ -84,16 +84,38 @@
         }
 
         /* --- 网格区域 --- */
-        .grid-area { flex: 0 1 auto; display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .grid-area { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            max-width: 600px;
+        }
         .grid {
             display: grid;
-            grid-template-columns: repeat(7, 55px);
+            grid-template-columns: repeat(7, 60px);
             gap: var(--grid-gap);
             background: var(--card-bg);
-            padding: 15px;
+            padding: 20px;
             border-radius: 16px;
             box-shadow: 0 15px 40px rgba(0,0,0,0.1);
             position: relative;
+            z-index: 1;
+        }
+
+        .cell {
+            width: 60px; 
+            height: 60px;
+            background: #f8f9fa;
+            border: 1px solid #eee;
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center;
+            cursor: pointer; 
+            border-radius: 8px;
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1;
         }
 
@@ -176,6 +198,7 @@
                 padding: 15px; 
                 height: auto;
                 border-radius: 12px;
+                max-width: 100%;
             }
             .config-panel.collapsed {
                 height: 50px; 
@@ -193,6 +216,9 @@
                 color: var(--accent);
                 font-weight: bold;
                 font-size: 14px;
+            }
+            .grid-area {
+                max-width: 100%;
             }
             .grid {
                 grid-template-columns: repeat(7, 12vw);
@@ -244,7 +270,7 @@
                 box-sizing: border-box;
             }
             .prob-input-group select {
-                width: 120px;
+                width: 180px;
             }
             h3 {
                 font-size: 14px !important;
@@ -354,8 +380,8 @@
             <div id="probInputs"></div>
             <div id="probWarning" style="font-size: 12px; margin: 8px 0;"></div>
             
-            <h3 style="margin-top:20px; font-size:16px;">🎯 保底系统</h3>
-            <div style="margin-bottom:10px;">
+            <h3 style="margin-top:25px; font-size:16px;">🎯 保底系统</h3>
+            <div style="margin-bottom:15px;">
                 <div class="prob-input-group">
                     <label>启用保底</label>
                     <input type="checkbox" id="enablePity" onchange="updatePityEnable(this.checked)" style="width:auto;">
@@ -368,7 +394,7 @@
                     <label>保底上限 (Y)</label>
                     <input type="number" id="pityMax" onchange="updatePityMax(this.value)" min="2" max="50">
                 </div>
-                <div style="font-size:11px; color:#888; margin-top:5px;">
+                <div style="font-size:11px; color:#888; margin-top:8px; padding:6px; background:#f8f9fa; border-radius:6px;">
                     当前未触发计数: <span id="currentMissesDisplay"></span>
                 </div>
             </div>
@@ -377,15 +403,18 @@
             <div style="margin-bottom:10px;">
                 <div class="prob-input-group">
                     <label>当前算法</label>
-                    <select id="algorithmSelect" onchange="updateAlgorithm(this.value)" style="width:120px; padding:4px;">
-                        <option value="greedy">贪心算法</option>
-                        <option value="weighted">带权启发式</option>
-                        <option value="entropy">熵减算法</option>
+                    <select id="algorithmSelect" onchange="updateAlgorithm(this.value)" style="width:180px; padding:4px;">
+                        <option value="greedy">贪心算法 (默认推荐)</option>
+                        <option value="weighted">带权启发式 (平衡探索与利用)</option>
+                        <option value="entropy">熵减算法 (分散未开格子)</option>
                     </select>
                 </div>
                 <div class="prob-input-group" id="weightParamGroup" style="display:none;">
-                    <label>启发式权重 (w)</label>
+                    <label>探索权重 (w)</label>
                     <input type="number" id="heuristicWeight" value="1.0" step="0.1" min="0.1" max="5.0" onchange="updateHeuristicWeight(this.value)" style="width:60px;">
+                </div>
+                <div id="weightHelp" style="display:none; font-size:11px; color:#666; margin-top:5px; padding:8px; background:#f8f9fa; border-radius:6px;">
+                    <b>探索权重说明：</b> w值越大，算法越倾向于选择周围未开格子多的位置（探索），w值越小则越关注当前格子直接收益（利用）。推荐值：1.0-2.0。
                 </div>
             </div>
 
@@ -558,7 +587,14 @@ function updatePityMax(val) { state.pityMax = parseInt(val) || 10; updateAnalysi
 function updateAlgorithm(val) {
     state.currentAlgorithm = val;
     const weightGroup = document.getElementById('weightParamGroup');
-    weightGroup.style.display = val === 'weighted' ? 'flex' : 'none';
+    const weightHelp = document.getElementById('weightHelp');
+    if (val === 'weighted') {
+        weightGroup.style.display = 'flex';
+        weightHelp.style.display = 'block';
+    } else {
+        weightGroup.style.display = 'none';
+        weightHelp.style.display = 'none';
+    }
     updateAnalysis();
 }
 function updateHeuristicWeight(val) {

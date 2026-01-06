@@ -687,7 +687,7 @@ function playEffect(type) {
 function updateProbs(i, val) { state.probs[i] = parseInt(val) || 0; updateAnalysis(); }
 function updatePityEnable(checked) { state.enablePity = checked; updateAnalysis(); }
 function updatePityStart(val) { state.pityStart = parseInt(val) || 3; updateAnalysis(); }
-function updatePityMax(val) { state.pityMax = parseInt(val) || 10; updateAnalysis(); }
+function updatePityMax(val) { state.pityMax = parseInt(val) || 5; updateAnalysis(); }
 function updateAlgorithm(val) {
     state.currentAlgorithm = val;
     const weightGroup = document.getElementById('weightParamGroup');

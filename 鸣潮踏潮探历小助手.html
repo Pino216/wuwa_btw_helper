@@ -206,18 +206,18 @@
             <div style="margin-bottom:10px;">
                 <div class="prob-input-group">
                     <label>启用保底</label>
-                    <input type="checkbox" id="enablePity" onchange="updatePityEnable(this.checked)" style="width:auto;" ${state.enablePity ? 'checked' : ''}>
+                    <input type="checkbox" id="enablePity" onchange="updatePityEnable(this.checked)" style="width:auto;">
                 </div>
                 <div class="prob-input-group">
                     <label>保底起始 (X)</label>
-                    <input type="number" id="pityStart" value="${state.pityStart}" onchange="updatePityStart(this.value)" min="1" max="20">
+                    <input type="number" id="pityStart" onchange="updatePityStart(this.value)" min="1" max="20">
                 </div>
                 <div class="prob-input-group">
                     <label>保底上限 (Y)</label>
-                    <input type="number" id="pityMax" value="${state.pityMax}" onchange="updatePityMax(this.value)" min="2" max="50">
+                    <input type="number" id="pityMax" onchange="updatePityMax(this.value)" min="2" max="50">
                 </div>
                 <div style="font-size:11px; color:#888; margin-top:5px;">
-                    当前未触发计数: <span id="currentMissesDisplay">${state.currentMisses}</span>
+                    当前未触发计数: <span id="currentMissesDisplay"></span>
                 </div>
             </div>
             

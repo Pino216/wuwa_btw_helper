@@ -2352,41 +2352,93 @@ function updateAnalysis() {
     saveState();
 }
 
+// 计算统计信息的辅助函数
+function calcStats(arr) {
+    if (arr.length === 0) return { mean: 0, variance: 0, std: 0, min: 0, max: 0 };
+    const mean = arr.reduce((a,b) => a + b, 0) / arr.length;
+    const variance = arr.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / arr.length;
+    const std = Math.sqrt(variance);
+    const min = Math.min(...arr);
+    const max = Math.max(...arr);
+    return { mean, variance, std, min, max };
+}
+
 function runBatchSimulation() {
     const iterations = parseInt(document.getElementById('simIterations').value) || 1000;
-    
-    // 确定实际使用的算法
-    let actualAlgorithm = state.currentAlgorithm;
-    let displayAlgorithm = actualAlgorithm; // 用于显示的算法名称
-    
-    // 根据算法值设置显示名称
-    if (actualAlgorithm === 'greedy') {
-        displayAlgorithm = '贪心算法';
-    } else if (actualAlgorithm === 'heuristic') {
-        displayAlgorithm = '带权启发';
-    } else if (actualAlgorithm === 'entropy') {
-        displayAlgorithm = '熵减算法';
-    } else if (actualAlgorithm === 'comprehensive') {
-        displayAlgorithm = '综合推荐';
-    } else {
-        // 默认使用综合推荐
-        actualAlgorithm = 'comprehensive';
-        displayAlgorithm = '综合推荐';
-    }
     
     // 显示加载状态
     const resultsDiv = document.getElementById('simResults');
     const contentDiv = document.getElementById('simResultsContent');
     resultsDiv.style.display = 'block';
-    contentDiv.innerHTML = '<p>正在运行模拟，请稍候...</p>';
+    contentDiv.innerHTML = '<p>正在运行多算法对比模拟，请稍候...</p>';
     
     // 使用 setTimeout 避免阻塞 UI
     setTimeout(() => {
         try {
-            // 运行当前算法（使用实际算法）
-            const currentResults = runSimulation(actualAlgorithm, iterations);
-            // 运行纯随机算法作为对比
-            const randomResults = runRandomSimulation(iterations);
+            // 定义要测试的算法列表和对应的模拟次数
+            // 蒙特卡洛算法需要更多计算，所以减少模拟次数但保持质量
+            const algorithmsToTest = [
+                { 
+                    id: 'greedy', 
+                    name: '贪心算法',
+                    simCount: Math.min(iterations, 1000), // 最多1000次
+                    description: '快速简单，适合前期'
+                },
+                { 
+                    id: 'heuristic', 
+                    name: '带权启发',
+                    simCount: Math.min(iterations, 1000),
+                    description: '平衡探索与利用'
+                },
+                { 
+                    id: 'entropy', 
+                    name: '熵减算法',
+                    simCount: Math.min(iterations, 1000),
+                    description: '清理孤立格子'
+                },
+                { 
+                    id: 'comprehensive', 
+                    name: '综合推荐',
+                    simCount: Math.min(iterations, 1000),
+                    description: '多算法融合'
+                },
+                { 
+                    id: 'mcts', 
+                    name: '蒙特卡洛搜索',
+                    simCount: Math.min(iterations, 300), // 蒙特卡洛计算量大，减少次数
+                    description: '深度前瞻（计算量大）'
+                },
+                { 
+                    id: 'fastMCTS', 
+                    name: '快速蒙特卡洛',
+                    simCount: Math.min(iterations, 500), // 快速版可以多跑一些
+                    description: '平衡性能与效果'
+                }
+            ];
+            
+            // 运行所有算法的模拟
+            const allResults = {};
+            const allStats = {};
+            const computeTimes = {}; // 记录计算时间
+            
+            // 先运行纯随机算法作为基准
+            contentDiv.innerHTML = '<p>正在运行纯随机算法基准测试...</p>';
+            const randomStart = performance.now();
+            const randomResults = runRandomSimulation(Math.min(iterations, 1000));
+            const randomTime = performance.now() - randomStart;
+            const randomStats = calcStats(randomResults);
+            
+            // 运行每个算法的模拟
+            for (const alg of algorithmsToTest) {
+                contentDiv.innerHTML = `<p>正在测试 ${alg.name} (${alg.simCount}次模拟)...</p>`;
+                const startTime = performance.now();
+                const results = runSimulation(alg.id, alg.simCount);
+                const endTime = performance.now();
+                
+                allResults[alg.id] = results;
+                allStats[alg.id] = calcStats(results);
+                computeTimes[alg.id] = endTime - startTime;
+            }
         
         // 生成多算法对比结果表格
         let html = `

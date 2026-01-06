@@ -1067,9 +1067,25 @@ function runSimulation(algorithmType, iterations = 1000) {
                 for (let i = 0; i < 49; i++) {
                     if (!grid[i]) unopened++;
                 }
-                if (unopened > 35) {
+                // 使用带滞后的阶段判断
+                let stageForSim;
+                if (unopened > 37) {
+                    stageForSim = "前期";
+                } else if (unopened > 35 && window.lastStage === "前期") {
+                    stageForSim = "前期";
+                } else if (unopened >= 17) {
+                    stageForSim = "中期";
+                } else if (unopened >= 15 && window.lastStage === "中期") {
+                    stageForSim = "中期";
+                } else if (unopened >= 13) {
+                    stageForSim = "后期";
+                } else {
+                    stageForSim = "末期";
+                }
+                
+                if (stageForSim === "前期") {
                     actualAlgorithm = 'heuristic';
-                } else if (unopened >= 15) {
+                } else if (stageForSim === "中期") {
                     actualAlgorithm = 'greedy';
                 } else {
                     actualAlgorithm = 'entropy';
@@ -1135,17 +1151,61 @@ function updateAnalysis() {
         if (!state.grid[i]) unopened++;
     }
     
-    // 判断阶段并确定推荐算法
+    // 判断阶段并确定推荐算法（带滞后区间）
     let stage, recommendedAlgorithm;
-    if (unopened > 35) {
+    
+    // 滞后区间：切换阈值上下浮动2个格子，避免频繁切换
+    // 上次阶段记录
+    if (!window.lastStage) window.lastStage = '';
+    
+    // 根据未开启格子数判断阶段
+    if (unopened > 37) { // 从35提高到37（进入前期的门槛更高）
         stage = "前期";
         recommendedAlgorithm = "heuristic";
-    } else if (unopened >= 15) {
+    } else if (unopened > 35 && window.lastStage === "前期") {
+        // 如果上次是前期，且格子数在35-37之间，保持前期（滞后效果）
+        stage = "前期";
+        recommendedAlgorithm = "heuristic";
+    } else if (unopened >= 17) { // 从15提高到17（进入中期的门槛更高）
         stage = "中期";
         recommendedAlgorithm = "greedy";
-    } else {
+    } else if (unopened >= 15 && window.lastStage === "中期") {
+        // 如果上次是中期，且格子数在15-17之间，保持中期
+        stage = "中期";
+        recommendedAlgorithm = "greedy";
+    } else if (unopened >= 13) { // 从<15改为>=13（进入后期的门槛更高）
         stage = "后期";
         recommendedAlgorithm = "entropy";
+    } else {
+        stage = "末期";
+        recommendedAlgorithm = "entropy";
+    }
+    
+    // 记录本次阶段
+    window.lastStage = stage;
+    
+    // 动态调整启发式权重：前期权重较高，后期降低
+    if (stage === "前期") {
+        // 前期：探索更重要，权重较高（1.5-2.0）
+        state.heuristicWeight = Math.max(1.5, Math.min(2.0, 
+            state.heuristicWeight || 1.5
+        ));
+    } else if (stage === "中期") {
+        // 中期：平衡探索与利用（1.0-1.5）
+        state.heuristicWeight = Math.max(1.0, Math.min(1.5,
+            state.heuristicWeight || 1.0
+        ));
+    } else {
+        // 后期：更注重利用（0.5-1.0）
+        state.heuristicWeight = Math.max(0.5, Math.min(1.0,
+            state.heuristicWeight || 0.8
+        ));
+    }
+    
+    // 更新权重输入框显示
+    const weightInput = document.getElementById('heuristicWeight');
+    if (weightInput) {
+        weightInput.value = state.heuristicWeight.toFixed(1);
     }
     
     // 处理算法选择逻辑
@@ -1263,21 +1323,40 @@ function runBatchSimulation() {
     let actualAlgorithm = state.currentAlgorithm;
     let displayAlgorithm = actualAlgorithm; // 用于显示的算法名称
     
-    // 检查是否需要动态切换
+    // 检查是否需要动态切换（使用带滞后的阶段判断）
     if (actualAlgorithm === 'auto' || state.autoAlgorithm) {
         // 计算未开启格子数
         let unopened = 0;
         for (let i = 0; i < 49; i++) {
             if (!state.grid[i]) unopened++;
         }
+        
+        // 使用与updateAnalysis相同的滞后逻辑
+        // 判断阶段
+        let stageForAuto;
+        if (unopened > 37) {
+            stageForAuto = "前期";
+        } else if (unopened > 35 && window.lastStage === "前期") {
+            stageForAuto = "前期";
+        } else if (unopened >= 17) {
+            stageForAuto = "中期";
+        } else if (unopened >= 15 && window.lastStage === "中期") {
+            stageForAuto = "中期";
+        } else if (unopened >= 13) {
+            stageForAuto = "后期";
+        } else {
+            stageForAuto = "末期";
+        }
+        
         // 根据阶段选择算法
-        if (unopened > 35) {
+        if (stageForAuto === "前期") {
             actualAlgorithm = 'heuristic';
-        } else if (unopened >= 15) {
+        } else if (stageForAuto === "中期") {
             actualAlgorithm = 'greedy';
         } else {
             actualAlgorithm = 'entropy';
         }
+        
         // 显示时使用'动态切换'
         displayAlgorithm = '动态切换';
     } else {

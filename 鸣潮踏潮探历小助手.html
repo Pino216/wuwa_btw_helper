@@ -528,6 +528,7 @@
                         <option value="greedy">贪心算法（利益至上）</option>
                         <option value="heuristic">带权启发（战略布局）</option>
                         <option value="entropy">熵减算法（风险对冲）</option>
+                        <option value="comprehensive">综合推荐（三重共识）</option>
                         <option value="auto">动态切换（时机把控）</option>
                     </select>
                 </div>
@@ -1025,6 +1026,42 @@ const Algorithms = {
             scores.push({ i, score: score });
         }
         return scores;
+    },
+    
+    // 综合推荐算法：选择在三种算法中得分最高的格子
+    comprehensive: function(p, grid, heuristicWeight) {
+        let scores = [];
+        
+        // 计算三种算法的分数
+        const greedyScores = this.greedy(p, grid);
+        const heuristicScores = this.heuristic(p, grid, heuristicWeight);
+        const entropyScores = this.entropy(p, grid);
+        
+        // 将分数转换为字典以便快速查找
+        const greedyMap = new Map();
+        const heuristicMap = new Map();
+        const entropyMap = new Map();
+        
+        greedyScores.forEach(s => greedyMap.set(s.i, s.score));
+        heuristicScores.forEach(s => heuristicMap.set(s.i, s.score));
+        entropyScores.forEach(s => entropyMap.set(s.i, s.score));
+        
+        // 计算每个格子的综合分数
+        for (let i = 0; i < 49; i++) {
+            if (grid[i]) continue;
+            
+            const greedyScore = greedyMap.get(i) || 0;
+            const heuristicScore = heuristicMap.get(i) || 0;
+            const entropyScore = entropyMap.get(i) || 0;
+            
+            // 综合分数：三种算法的加权平均
+            // 可以调整权重，这里先使用简单平均
+            const combinedScore = (greedyScore + heuristicScore + entropyScore) / 3;
+            
+            scores.push({ i, score: combinedScore });
+        }
+        
+        return scores;
     }
 };
 
@@ -1196,6 +1233,8 @@ function runSimulation(algorithmType, iterations = 1000) {
                 scores = Algorithms.heuristic(p, grid, heuristicWeight);
             } else if (actualAlgorithm === 'entropy') {
                 scores = Algorithms.entropy(p, grid);
+            } else if (actualAlgorithm === 'comprehensive') {
+                scores = Algorithms.comprehensive(p, grid, heuristicWeight);
             } else {
                 scores = Algorithms.greedy(p, grid);
             }
@@ -1389,7 +1428,8 @@ function updateAnalysis() {
     const allScores = {
         greedy: Algorithms.greedy(p, state.grid),
         heuristic: Algorithms.heuristic(p, state.grid, state.heuristicWeight),
-        entropy: Algorithms.entropy(p, state.grid)
+        entropy: Algorithms.entropy(p, state.grid),
+        comprehensive: Algorithms.comprehensive(p, state.grid, state.heuristicWeight)
     };
     
     // 计算每个算法的总分
@@ -1457,6 +1497,8 @@ function updateAnalysis() {
         displayScores = normalizedScores.heuristic;
     } else if (currentAlgorithm === 'entropy') {
         displayScores = normalizedScores.entropy;
+    } else if (currentAlgorithm === 'comprehensive') {
+        displayScores = normalizedScores.comprehensive;
     } else {
         // 如果选择动态切换，显示综合分数
         displayScores = combinedScores;
@@ -1599,6 +1641,8 @@ function runBatchSimulation() {
             displayAlgorithm = '带权启发';
         } else if (actualAlgorithm === 'entropy') {
             displayAlgorithm = '熵减算法';
+        } else if (actualAlgorithm === 'comprehensive') {
+            displayAlgorithm = '综合推荐';
         }
     }
     
@@ -1687,6 +1731,8 @@ function runBatchSimulation() {
                 scores = Algorithms.heuristic(p, grid, state.heuristicWeight);
             } else if (heatmapAlgorithm === 'entropy') {
                 scores = Algorithms.entropy(p, grid);
+            } else if (heatmapAlgorithm === 'comprehensive') {
+                scores = Algorithms.comprehensive(p, grid, state.heuristicWeight);
             }
             
             if (scores.length > 0) {

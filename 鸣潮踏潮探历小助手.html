@@ -1013,12 +1013,29 @@ function runSimulation(algorithmType, iterations = 1000) {
             }
             const p = adjustedProbs.map(v => v / 100);
             
+            // 如果算法类型是'auto'，根据当前未开启格子数动态选择算法
+            let actualAlgorithm = algorithmType;
+            if (algorithmType === 'auto') {
+                // 计算未开启格子数
+                let unopened = 0;
+                for (let i = 0; i < 49; i++) {
+                    if (!grid[i]) unopened++;
+                }
+                if (unopened > 35) {
+                    actualAlgorithm = 'weighted';
+                } else if (unopened >= 15) {
+                    actualAlgorithm = 'greedy';
+                } else {
+                    actualAlgorithm = 'entropy';
+                }
+            }
+            
             let scores;
-            if (algorithmType === 'greedy') {
+            if (actualAlgorithm === 'greedy') {
                 scores = Algorithms.greedy(p, grid);
-            } else if (algorithmType === 'weighted') {
+            } else if (actualAlgorithm === 'weighted') {
                 scores = Algorithms.weighted(p, grid, heuristicWeight);
-            } else if (algorithmType === 'entropy') {
+            } else if (actualAlgorithm === 'entropy') {
                 scores = Algorithms.entropy(p, grid);
             } else {
                 scores = Algorithms.greedy(p, grid);
@@ -1171,7 +1188,24 @@ function updateAnalysis() {
 
 function runBatchSimulation() {
     const iterations = parseInt(document.getElementById('simIterations').value) || 1000;
-    const currentAlgorithm = state.currentAlgorithm;
+    
+    // 确定实际使用的算法：如果当前算法是'auto'，则根据阶段选择算法
+    let actualAlgorithm = state.currentAlgorithm;
+    if (actualAlgorithm === 'auto' || state.autoAlgorithm) {
+        // 计算未开启格子数
+        let unopened = 0;
+        for (let i = 0; i < 49; i++) {
+            if (!state.grid[i]) unopened++;
+        }
+        // 根据阶段选择算法
+        if (unopened > 35) {
+            actualAlgorithm = 'weighted';
+        } else if (unopened >= 15) {
+            actualAlgorithm = 'greedy';
+        } else {
+            actualAlgorithm = 'entropy';
+        }
+    }
     
     // 显示加载状态
     const resultsDiv = document.getElementById('simResults');
@@ -1181,8 +1215,8 @@ function runBatchSimulation() {
     
     // 使用 setTimeout 避免阻塞 UI
     setTimeout(() => {
-        // 运行当前算法
-        const currentResults = runSimulation(currentAlgorithm, iterations);
+        // 运行当前算法（使用实际算法）
+        const currentResults = runSimulation(actualAlgorithm, iterations);
         // 运行基础贪心算法作为对比
         const greedyResults = runSimulation('greedy', iterations);
         
@@ -1221,11 +1255,11 @@ function runBatchSimulation() {
             const p = adjustedProbs.map(v => v / 100);
             
             let scores;
-            if (currentAlgorithm === 'greedy') {
+            if (actualAlgorithm === 'greedy') {
                 scores = Algorithms.greedy(p, grid);
-            } else if (currentAlgorithm === 'weighted') {
+            } else if (actualAlgorithm === 'weighted') {
                 scores = Algorithms.weighted(p, grid, state.heuristicWeight);
-            } else if (currentAlgorithm === 'entropy') {
+            } else if (actualAlgorithm === 'entropy') {
                 scores = Algorithms.entropy(p, grid);
             }
             
@@ -1256,7 +1290,7 @@ function runBatchSimulation() {
                 <table style="width:100%; font-size:11px; border-collapse:collapse;">
                     <tr>
                         <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">指标</th>
-                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">当前算法 (${currentAlgorithm})</th>
+                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">当前算法 (${actualAlgorithm})</th>
                         <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">基础贪心</th>
                     </tr>
                     <tr>

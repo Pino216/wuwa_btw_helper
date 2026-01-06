@@ -221,6 +221,22 @@
                 </div>
             </div>
             
+            <h3 style="margin-top:20px; font-size:16px;">🤖 算法选择</h3>
+            <div style="margin-bottom:10px;">
+                <div class="prob-input-group">
+                    <label>当前算法</label>
+                    <select id="algorithmSelect" onchange="updateAlgorithm(this.value)" style="width:120px; padding:4px;">
+                        <option value="greedy">贪心算法</option>
+                        <option value="weighted">带权启发式</option>
+                        <option value="entropy">熵减算法</option>
+                    </select>
+                </div>
+                <div class="prob-input-group" id="weightParamGroup" style="display:none;">
+                    <label>启发式权重 (w)</label>
+                    <input type="number" id="heuristicWeight" value="1.0" step="0.1" min="0.1" max="5.0" onchange="updateHeuristicWeight(this.value)" style="width:60px;">
+                </div>
+            </div>
+            
             <button class="btn-reset" onclick="confirmReset()">🔄 重置进度</button>
         </div>
     </div>
@@ -255,7 +271,9 @@ const defaultData = {
     enablePity: true,
     pityStart: 3,
     pityMax: 10,
-    currentMisses: 0
+    currentMisses: 0,
+    currentAlgorithm: 'greedy',
+    heuristicWeight: 1.0
 };
 
 let state = loadState();
@@ -290,7 +308,9 @@ function loadState() {
         enablePity: loaded.enablePity !== undefined ? loaded.enablePity : defaultData.enablePity,
         pityStart: loaded.pityStart || defaultData.pityStart,
         pityMax: loaded.pityMax || defaultData.pityMax,
-        currentMisses: loaded.currentMisses || 0
+        currentMisses: loaded.currentMisses || 0,
+        currentAlgorithm: loaded.currentAlgorithm || defaultData.currentAlgorithm,
+        heuristicWeight: loaded.heuristicWeight || defaultData.heuristicWeight
     };
 }
 
@@ -314,6 +334,13 @@ function init() {
     document.getElementById('pityStart').value = state.pityStart;
     document.getElementById('pityMax').value = state.pityMax;
     document.getElementById('currentMissesDisplay').textContent = state.currentMisses;
+    
+    // 渲染算法选择
+    document.getElementById('algorithmSelect').value = state.currentAlgorithm;
+    document.getElementById('heuristicWeight').value = state.heuristicWeight;
+    // 根据算法显示/隐藏权重参数
+    const weightGroup = document.getElementById('weightParamGroup');
+    weightGroup.style.display = state.currentAlgorithm === 'weighted' ? 'flex' : 'none';
 
     // 渲染网格
     const gridEl = document.getElementById('grid');
@@ -363,6 +390,16 @@ function updateProbs(i, val) { state.probs[i] = parseInt(val) || 0; updateAnalys
 function updatePityEnable(checked) { state.enablePity = checked; updateAnalysis(); }
 function updatePityStart(val) { state.pityStart = parseInt(val) || 3; updateAnalysis(); }
 function updatePityMax(val) { state.pityMax = parseInt(val) || 10; updateAnalysis(); }
+function updateAlgorithm(val) {
+    state.currentAlgorithm = val;
+    const weightGroup = document.getElementById('weightParamGroup');
+    weightGroup.style.display = val === 'weighted' ? 'flex' : 'none';
+    updateAnalysis();
+}
+function updateHeuristicWeight(val) {
+    state.heuristicWeight = parseFloat(val) || 1.0;
+    updateAnalysis();
+}
 
 function showMenu(r, c, e) {
     if (state.grid[r * 7 + c]) return;
@@ -434,32 +471,27 @@ function updateAnalysis() {
     // 更新显示
     document.getElementById('currentMissesDisplay').textContent = state.currentMisses;
 
+    // 根据当前算法计算分数
+    const algorithm = state.currentAlgorithm;
+    if (algorithm === 'greedy') {
+        scores = Algorithms.greedy(p, state.grid);
+    } else if (algorithm === 'weighted') {
+        scores = Algorithms.weighted(p, state.grid, state.heuristicWeight);
+    } else if (algorithm === 'entropy') {
+        scores = Algorithms.entropy(p, state.grid);
+    }
+    
+    // 统计未开启格子数量并更新显示
     for (let i = 0; i < 49; i++) {
-        const r = Math.floor(i / 7), c = i % 7;
         const el = document.getElementById(`cell-${i}`);
         el.classList.remove('best', 'good');
         if (state.grid[i]) continue;
         unopened++;
-
-        let gain = p[0] * 1;
-        let rg=0, cg=0, comb=0, cross=0, box=0;
-        for(let j=0; j<7; j++) {
-            if(!state.grid[r*7+j]) { rg++; comb++; }
-            if(!state.grid[j*7+c]) { cg++; if(j!==r) comb++; }
+        // 找到对应的分数
+        const scoreObj = scores.find(s => s.i === i);
+        if (scoreObj) {
+            document.getElementById(`s-${i}`).innerText = scoreObj.score.toFixed(1);
         }
-        gain += p[1]*cg + p[2]*rg + p[3]*comb;
-        [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(o => {
-            let nr=r+o[0], nc=c+o[1];
-            if(nr>=0&&nr<7&&nc>=0&&nc<7 && !state.grid[nr*7+nc]) cross++;
-        });
-        for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
-            let nr=r+dr, nc=c+dc;
-            if(nr>=0&&nr<7&&nc>=0&&nc<7 && !state.grid[nr*7+nc]) box++;
-        }
-        gain += p[4]*cross + p[5]*box + p[6]*(state.grid.filter(v=>!v).length);
-
-        document.getElementById(`s-${i}`).innerText = gain.toFixed(1);
-        scores.push({ i, score: gain });
     }
 
     if(scores.length > 0){

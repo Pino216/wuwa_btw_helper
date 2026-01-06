@@ -1259,9 +1259,11 @@ function updateAnalysis() {
 function runBatchSimulation() {
     const iterations = parseInt(document.getElementById('simIterations').value) || 1000;
     
-    // 确定实际使用的算法：如果当前算法是'auto'，则根据阶段选择算法
+    // 确定实际使用的算法：如果当前算法是'auto'或启用了自动切换，则根据阶段选择算法
     let actualAlgorithm = state.currentAlgorithm;
     let displayAlgorithm = actualAlgorithm; // 用于显示的算法名称
+    
+    // 检查是否需要动态切换
     if (actualAlgorithm === 'auto' || state.autoAlgorithm) {
         // 计算未开启格子数
         let unopened = 0;
@@ -1278,6 +1280,15 @@ function runBatchSimulation() {
         }
         // 显示时使用'动态切换'
         displayAlgorithm = '动态切换';
+    } else {
+        // 根据算法值设置显示名称
+        if (actualAlgorithm === 'greedy') {
+            displayAlgorithm = '贪心算法';
+        } else if (actualAlgorithm === 'heuristic') {
+            displayAlgorithm = '带权启发';
+        } else if (actualAlgorithm === 'entropy') {
+            displayAlgorithm = '熵减算法';
+        }
     }
     
     // 显示加载状态
@@ -1330,8 +1341,8 @@ function runBatchSimulation() {
             let scores;
             if (actualAlgorithm === 'greedy') {
                 scores = Algorithms.greedy(p, grid);
-            } else if (actualAlgorithm === 'weighted') {
-                scores = Algorithms.weighted(p, grid, state.heuristicWeight);
+            } else if (actualAlgorithm === 'heuristic') {
+                scores = Algorithms.heuristic(p, grid, state.heuristicWeight);
             } else if (actualAlgorithm === 'entropy') {
                 scores = Algorithms.entropy(p, grid);
             }

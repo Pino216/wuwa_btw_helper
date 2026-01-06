@@ -1378,6 +1378,128 @@ const Algorithms = {
     }
 };
 
+// 纯随机模拟：每次随机选择一个未开启的格子
+function runRandomSimulation(iterations = 1000) {
+    // 复制当前状态设置
+    const baseProbs = [...state.probs];
+    const enablePity = state.enablePity;
+    const pityStart = state.pityStart;
+    const pityMax = state.pityMax;
+    
+    // 模拟函数
+    function simulateOneRandomGame() {
+        let grid = Array(49).fill(false);
+        let clicks = 0;
+        let currentMisses = 0;
+        
+        // 辅助函数：应用事件
+        const applyEventToGrid = (type, r, c, grid) => {
+            const mark = (row, col) => {
+                if (row >= 0 && row < 7 && col >= 0 && col < 7) {
+                    const idx = row * 7 + col;
+                    grid[idx] = true;
+                }
+            };
+            if (type === 1) {
+                mark(r, c);
+                currentMisses++;
+            } else {
+                if (type === 2) for(let i=0; i<7; i++) mark(i, c);
+                else if (type === 3) for(let i=0; i<7; i++) mark(r, i);
+                else if (type === 4) { for(let i=0; i<7; i++) { mark(i, c); mark(r, i); } }
+                else if (type === 5) { mark(r, c); mark(r-1,c); mark(r+1,c); mark(r,c-1); mark(r,c+1); }
+                else if (type === 6) { for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) mark(r+i, c+j); }
+                else if (type === 7) { grid.fill(true); }
+                currentMisses = 0;
+            }
+            return grid;
+        };
+        
+        // 选择事件类型（考虑保底）
+        const chooseEventType = () => {
+            // 检查是否达到最大保底次数，如果是则必触发非类型1事件
+            if (enablePity && currentMisses >= pityMax) {
+                // 必触发非类型1事件（2-7）
+                // 随机选择2-7中的一种，按原始概率比例
+                const nonType1Probs = baseProbs.slice(1); // 获取类型2-7的概率
+                const totalNonType1 = nonType1Probs.reduce((a, b) => a + b, 0);
+                const normalizedNonType1 = nonType1Probs.map(p => p / totalNonType1);
+                
+                const rand = Math.random();
+                let accum = 0;
+                for (let i = 0; i < 6; i++) {
+                    accum += normalizedNonType1[i];
+                    if (rand <= accum) return i + 2; // 返回2-7
+                }
+                return 7; // 默认
+            }
+            
+            // 动态概率调整
+            let adjustedProbs = [...baseProbs];
+            if (enablePity && currentMisses >= pityStart) {
+                const progress = Math.min((currentMisses - pityStart + 1) / (pityMax - pityStart + 1), 1.0);
+                // 逐步增加非类型1事件的概率
+                // 类型1的概率减少，其他类型的概率按比例增加
+                const type1Reduction = 0.5 * progress; // 最多减少50%
+                adjustedProbs[0] = baseProbs[0] * (1 - type1Reduction);
+                
+                // 将减少的概率分配到其他类型
+                const reductionAmount = baseProbs[0] * type1Reduction;
+                const otherTotal = baseProbs.slice(1).reduce((a, b) => a + b, 0);
+                
+                for (let i = 1; i < 7; i++) {
+                    adjustedProbs[i] = baseProbs[i] + (reductionAmount * (baseProbs[i] / otherTotal));
+                }
+            }
+            
+            // 归一化
+            const sum = adjustedProbs.reduce((a, b) => a + b, 0);
+            const normalized = adjustedProbs.map(p => p / sum);
+            
+            // 随机选择
+            const rand = Math.random();
+            let accum = 0;
+            for (let i = 0; i < 7; i++) {
+                accum += normalized[i];
+                if (rand <= accum) return i + 1;
+            }
+            return 7;
+        };
+        
+        // 随机选择一个未开启的格子
+        const chooseRandomCell = (grid) => {
+            // 收集所有未开启格子的索引
+            const unopenedIndices = [];
+            for (let i = 0; i < 49; i++) {
+                if (!grid[i]) unopenedIndices.push(i);
+            }
+            if (unopenedIndices.length === 0) return null;
+            
+            // 随机选择一个
+            const randomIndex = Math.floor(Math.random() * unopenedIndices.length);
+            const idx = unopenedIndices[randomIndex];
+            return { r: Math.floor(idx / 7), c: idx % 7 };
+        };
+        
+        // 主循环
+        while (grid.some(cell => !cell)) {
+            const randomCell = chooseRandomCell(grid);
+            if (!randomCell) break;
+            const eventType = chooseEventType();
+            applyEventToGrid(eventType, randomCell.r, randomCell.c, grid);
+            clicks++;
+        }
+        return clicks;
+    }
+    
+    // 运行多次模拟
+    const results = [];
+    for (let i = 0; i < iterations; i++) {
+        results.push(simulateOneRandomGame());
+    }
+    return results;
+}
+
 // 模拟单个游戏直到完成，返回点击次数
 function runSimulation(algorithmType, iterations = 1000) {
     // 复制当前状态设置
@@ -1930,8 +2052,8 @@ function runBatchSimulation() {
         try {
             // 运行当前算法（使用实际算法）
             const currentResults = runSimulation(actualAlgorithm, iterations);
-            // 运行基础贪心算法作为对比
-            const greedyResults = runSimulation('greedy', iterations);
+            // 运行纯随机算法作为对比
+            const randomResults = runRandomSimulation(iterations);
         
         // 计算统计信息
         const calcStats = (arr) => {
@@ -1942,7 +2064,7 @@ function runBatchSimulation() {
         };
         
         const currentStats = calcStats(currentResults);
-        const greedyStats = calcStats(greedyResults);
+        const randomStats = calcStats(randomResults);
         
         // 计算开局最优解热力分布（第一轮模拟的第一个选择）
         // 我们运行一次模拟，记录每个格子被选为第一个选择的次数
@@ -2036,22 +2158,22 @@ function runBatchSimulation() {
                     <tr>
                         <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">指标</th>
                         <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">当前算法 (${displayAlgorithm})</th>
-                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">基础贪心</th>
+                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">纯随机选择</th>
                     </tr>
                     <tr>
                         <td style="padding:4px; border-bottom:1px solid #eee;">平均点击次数</td>
                         <td style="padding:4px; border-bottom:1px solid #eee;">${currentStats.mean.toFixed(2)}</td>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">${greedyStats.mean.toFixed(2)}</td>
+                        <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.mean.toFixed(2)}</td>
                     </tr>
                     <tr>
                         <td style="padding:4px; border-bottom:1px solid #eee;">方差</td>
                         <td style="padding:4px; border-bottom:1px solid #eee;">${currentStats.variance.toFixed(2)}</td>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">${greedyStats.variance.toFixed(2)}</td>
+                        <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.variance.toFixed(2)}</td>
                     </tr>
                     <tr>
                         <td style="padding:4px; border-bottom:1px solid #eee;">标准差</td>
                         <td style="padding:4px; border-bottom:1px solid #eee;">${currentStats.std.toFixed(2)}</td>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">${greedyStats.std.toFixed(2)}</td>
+                        <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.std.toFixed(2)}</td>
                     </tr>
                 </table>
             </div>

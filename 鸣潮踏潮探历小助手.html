@@ -446,6 +446,18 @@
 
         .watermark { position: fixed; top: 15px; right: 15px; background: rgba(255,255,255,0.9); padding: 8px 12px; border-radius: 10px; border-left: 4px solid var(--accent); box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 1000; font-size: 12px; }
 
+        /* 呼吸灯特效 */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(46, 213, 115, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0); }
+        }
+        .algorithm-pulse {
+            animation: pulse 2s infinite;
+            border-radius: 8px;
+            padding: 2px 8px;
+        }
+
         /* 恭喜弹窗 */
         #winOverlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -496,11 +508,16 @@
             <h3 style="margin-top:20px; font-size:16px;">🤖 算法选择</h3>
             <div style="margin-bottom:10px;">
                 <div class="prob-input-group">
+                    <label>智能自动切换</label>
+                    <input type="checkbox" id="autoAlgorithm" onchange="toggleAutoAlgorithm(this.checked)" style="width:auto;">
+                </div>
+                <div class="prob-input-group">
                     <label>当前算法</label>
                     <select id="algorithmSelect" onchange="updateAlgorithm(this.value)" style="width:180px; padding:4px;">
                         <option value="greedy">贪心算法 (默认推荐)</option>
                         <option value="weighted">带权启发式 (平衡探索与利用)</option>
                         <option value="entropy">熵减算法 (分散未开格子)</option>
+                        <option value="auto">智能自动切换</option>
                     </select>
                 </div>
                 <div class="prob-input-group" id="weightParamGroup" style="display:none;">
@@ -561,7 +578,8 @@ const defaultData = {
     pityMax: 5,
     currentMisses: 0,
     currentAlgorithm: 'greedy',
-    heuristicWeight: 1.0
+    heuristicWeight: 1.0,
+    autoAlgorithm: false
 };
 
 let state = loadState();
@@ -636,6 +654,7 @@ function init() {
     // 渲染算法选择
     document.getElementById('algorithmSelect').value = state.currentAlgorithm;
     document.getElementById('heuristicWeight').value = state.heuristicWeight;
+    document.getElementById('autoAlgorithm').checked = state.autoAlgorithm;
     // 根据算法显示/隐藏权重参数
     const weightGroup = document.getElementById('weightParamGroup');
     weightGroup.style.display = state.currentAlgorithm === 'weighted' ? 'flex' : 'none';
@@ -690,6 +709,13 @@ function updatePityStart(val) { state.pityStart = parseInt(val) || 3; updateAnal
 function updatePityMax(val) { state.pityMax = parseInt(val) || 5; updateAnalysis(); }
 function updateAlgorithm(val) {
     state.currentAlgorithm = val;
+    if (val === 'auto') {
+        state.autoAlgorithm = true;
+        document.getElementById('autoAlgorithm').checked = true;
+    } else {
+        state.autoAlgorithm = false;
+        document.getElementById('autoAlgorithm').checked = false;
+    }
     const weightGroup = document.getElementById('weightParamGroup');
     const weightHelp = document.getElementById('weightHelp');
     if (val === 'weighted') {
@@ -701,6 +727,15 @@ function updateAlgorithm(val) {
     }
     updateAnalysis();
 }
+function toggleAutoAlgorithm(checked) {
+    state.autoAlgorithm = checked;
+    if (checked) {
+        document.getElementById('algorithmSelect').value = 'auto';
+        state.currentAlgorithm = 'auto';
+    }
+    updateAnalysis();
+}
+
 function updateHeuristicWeight(val) {
     state.heuristicWeight = parseFloat(val) || 1.0;
     updateAnalysis();
@@ -845,44 +880,14 @@ const Algorithms = {
         return scores;
     },
     
-    // 熵减算法：优先分散未开启格子簇
+    // 熵减算法：优先计算并标注周围邻居（未开启空格）最少的孤立格子
     entropy: function(p, grid) {
         let scores = [];
-        // 首先，找出所有未开启格子的簇
-        // 使用简单的连通分量标记（4连通）
-        let visited = Array(49).fill(false);
-        let clusters = [];
-        for (let i = 0; i < 49; i++) {
-            if (!grid[i] && !visited[i]) {
-                let stack = [i];
-                let cluster = [];
-                while (stack.length > 0) {
-                    let idx = stack.pop();
-                    if (visited[idx]) continue;
-                    visited[idx] = true;
-                    cluster.push(idx);
-                    let r = Math.floor(idx / 7), c = idx % 7;
-                    // 上下左右
-                    let neighbors = [
-                        [r-1, c], [r+1, c], [r, c-1], [r, c+1]
-                    ];
-                    for (let [nr, nc] of neighbors) {
-                        if (nr>=0 && nr<7 && nc>=0 && nc<7) {
-                            let nIdx = nr*7 + nc;
-                            if (!grid[nIdx] && !visited[nIdx]) {
-                                stack.push(nIdx);
-                            }
-                        }
-                    }
-                }
-                clusters.push(cluster);
-            }
-        }
         
-        // 计算每个格子的熵减分数
         for (let i = 0; i < 49; i++) {
             const r = Math.floor(i / 7), c = i % 7;
             if (grid[i]) continue;
+            
             // 基础收益 g(n)
             let g = 0;
             let rg=0, cg=0, comb=0, cross=0, box=0;
@@ -901,43 +906,24 @@ const Algorithms = {
             }
             g += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
             
-            // 熵减分数：选择该格子后，剩余簇的数量变化
-            // 模拟选择该格子（临时标记为开启）
-            let tempGrid = [...grid];
-            tempGrid[i] = true;
-            // 重新计算簇的数量
-            let tempVisited = Array(49).fill(false);
-            let newClusters = 0;
-            for (let j = 0; j < 49; j++) {
-                if (!tempGrid[j] && !tempVisited[j]) {
-                    newClusters++;
-                    // 简单标记，不展开
-                    let stack = [j];
-                    while (stack.length > 0) {
-                        let idx = stack.pop();
-                        if (tempVisited[idx]) continue;
-                        tempVisited[idx] = true;
-                        let rr = Math.floor(idx / 7), cc = idx % 7;
-                        let neighbors = [
-                            [rr-1, cc], [rr+1, cc], [rr, cc-1], [rr, cc+1]
-                        ];
-                        for (let [nr, nc] of neighbors) {
-                            if (nr>=0 && nr<7 && nc>=0 && nc<7) {
-                                let nIdx = nr*7 + nc;
-                                if (!tempGrid[nIdx] && !tempVisited[nIdx]) {
-                                    stack.push(nIdx);
-                                }
-                            }
-                        }
-                    }
+            // 计算周围未开启邻居的数量（4连通）
+            let neighborCount = 0;
+            const neighbors = [
+                [r-1, c], [r+1, c], [r, c-1], [r, c+1]
+            ];
+            for (let [nr, nc] of neighbors) {
+                if (nr>=0 && nr<7 && nc>=0 && nc<7 && !grid[nr*7+nc]) {
+                    neighborCount++;
                 }
             }
-            // 原始簇数量
-            let originalClusters = clusters.length;
-            // 熵减 = 原始簇数量 - 新簇数量（我们希望减少簇的数量）
-            let entropyReduction = originalClusters - newClusters;
-            // 分数 = g(n) + 熵减（归一化）
-            const score = g + entropyReduction * 0.5; // 调整系数
+            
+            // 孤立度分数：邻居越少，分数越高（优先选择孤立格子）
+            // 最大邻居数是4，所以孤立度 = (4 - neighborCount) / 4
+            const isolationScore = (4 - neighborCount) / 4;
+            
+            // 最终分数 = 基础收益 + 孤立度权重
+            // 给孤立度一个较大的权重，确保优先清理孤岛
+            const score = g + isolationScore * 50;
             scores.push({ i, score: score });
         }
         return scores;
@@ -1081,6 +1067,32 @@ function updateAnalysis() {
     let unopened = 0;
     let scores = [];
     
+    // 统计未开启格子数量
+    for (let i = 0; i < 49; i++) {
+        if (!state.grid[i]) unopened++;
+    }
+    
+    // 判断阶段并确定推荐算法
+    let stage, recommendedAlgorithm;
+    if (unopened > 35) {
+        stage = "前期";
+        recommendedAlgorithm = "weighted";
+    } else if (unopened >= 15) {
+        stage = "中期";
+        recommendedAlgorithm = "greedy";
+    } else {
+        stage = "后期";
+        recommendedAlgorithm = "entropy";
+    }
+    
+    // 如果启用了智能自动切换，则使用推荐算法
+    let currentAlgorithm = state.currentAlgorithm;
+    if (state.autoAlgorithm || currentAlgorithm === 'auto') {
+        currentAlgorithm = recommendedAlgorithm;
+        // 更新下拉菜单显示
+        document.getElementById('algorithmSelect').value = 'auto';
+    }
+    
     // 动态概率调整
     let adjustedProbs = [...state.probs];
     if (state.enablePity && state.currentMisses >= state.pityStart) {
@@ -1108,21 +1120,27 @@ function updateAnalysis() {
     document.getElementById('currentMissesDisplay').textContent = state.currentMisses;
 
     // 根据当前算法计算分数
-    const algorithm = state.currentAlgorithm;
-    if (algorithm === 'greedy') {
+    if (currentAlgorithm === 'greedy') {
         scores = Algorithms.greedy(p, state.grid);
-    } else if (algorithm === 'weighted') {
+    } else if (currentAlgorithm === 'weighted') {
         scores = Algorithms.weighted(p, state.grid, state.heuristicWeight);
-    } else if (algorithm === 'entropy') {
+    } else if (currentAlgorithm === 'entropy') {
         scores = Algorithms.entropy(p, state.grid);
     }
     
-    // 统计未开启格子数量并更新显示
+    // 更新算法下拉菜单的呼吸灯特效
+    const algorithmSelect = document.getElementById('algorithmSelect');
+    algorithmSelect.classList.remove('algorithm-pulse');
+    // 如果启用了智能自动切换，为推荐算法添加呼吸灯
+    if (state.autoAlgorithm || state.currentAlgorithm === 'auto') {
+        algorithmSelect.classList.add('algorithm-pulse');
+    }
+    
+    // 更新显示
     for (let i = 0; i < 49; i++) {
         const el = document.getElementById(`cell-${i}`);
         el.classList.remove('best', 'good');
         if (state.grid[i]) continue;
-        unopened++;
         // 找到对应的分数
         const scoreObj = scores.find(s => s.i === i);
         if (scoreObj) {
@@ -1143,9 +1161,10 @@ function updateAnalysis() {
         document.getElementById('winMessage').innerText = `已锁定全图坐标！本轮共反馈 ${state.clicks} 次。`;
         localStorage.removeItem(STORAGE_KEY);
     }
+    // 更新状态栏，显示阶段和推荐算法
     const statusText = window.innerWidth <= 768 
-        ? `剩余:${unopened} 点击:${state.clicks} 未触发:${state.currentMisses}`
-        : `剩余: ${unopened} | 本局点击: ${state.clicks} | 未触发: ${state.currentMisses}`;
+        ? `剩余:${unopened} 阶段:${stage} 算法:${currentAlgorithm}`
+        : `剩余: ${unopened} | 阶段: ${stage} | 算法: ${currentAlgorithm}${state.autoAlgorithm ? ' (智能)' : ''} | 点击: ${state.clicks}`;
     document.getElementById('statusBar').innerText = statusText;
     saveState();
 }

@@ -543,6 +543,10 @@
                         <label>探索权重 (w)</label>
                         <input type="number" id="heuristicWeight" value="1.0" step="0.1" min="0.1" max="5.0" onchange="updateHeuristicWeight(this.value)" style="width:60px; padding:4px; border:1px solid #ddd; border-radius:4px;">
                     </div>
+                    <div class="prob-input-group" id="autoWeightGroup" style="display:none;">
+                        <label>权重自动调整</label>
+                        <input type="checkbox" id="autoWeight" onchange="toggleAutoWeight(this.checked)" style="width:auto;">
+                    </div>
                     <div id="comprehensiveParamGroup" style="display:none; margin-top:10px;">
                         <div style="font-size:12px; margin-bottom:5px; color:#666; font-weight:bold;">参与综合的算法：</div>
                         <div style="display:flex; flex-wrap:wrap; gap:8px;">
@@ -639,7 +643,8 @@ const defaultData = {
     currentMisses: 0,
     currentAlgorithm: 'greedy',
     heuristicWeight: 1.0,
-    autoAlgorithm: false
+    autoAlgorithm: false,
+    autoWeight: true
 };
 
 let state = loadState();
@@ -702,6 +707,7 @@ function loadState() {
         result.currentAlgorithm = loadedAlgorithm;
         result.heuristicWeight = typeof loaded.heuristicWeight === 'number' ? loaded.heuristicWeight : defaultData.heuristicWeight;
         result.autoAlgorithm = typeof loaded.autoAlgorithm === 'boolean' ? loaded.autoAlgorithm : defaultData.autoAlgorithm;
+        result.autoWeight = typeof loaded.autoWeight === 'boolean' ? loaded.autoWeight : defaultData.autoWeight;
         
         // 确保grid长度正确
         if (result.grid.length !== 49) {
@@ -743,6 +749,7 @@ function init() {
     document.getElementById('algorithmSelect').value = state.currentAlgorithm;
     document.getElementById('heuristicWeight').value = state.heuristicWeight;
     document.getElementById('autoAlgorithm').checked = false; // 不再使用
+    document.getElementById('autoWeight').checked = state.autoWeight;
     
     // 初始化综合推荐算法选择
     if (!state.comprehensiveAlgorithms) {
@@ -840,19 +847,23 @@ function updateAlgorithm(val) {
     document.getElementById('autoAlgorithm').checked = false;
     
     const weightGroup = document.getElementById('weightParamGroup');
+    const autoWeightGroup = document.getElementById('autoWeightGroup');
     const comprehensiveGroup = document.getElementById('comprehensiveParamGroup');
     const weightHelp = document.getElementById('weightHelp');
     
     if (val === 'heuristic') {
         weightGroup.style.display = 'flex';
+        autoWeightGroup.style.display = 'flex';
         comprehensiveGroup.style.display = 'none';
         weightHelp.style.display = 'block';
     } else if (val === 'comprehensive') {
         weightGroup.style.display = 'none';
+        autoWeightGroup.style.display = 'none';
         comprehensiveGroup.style.display = 'block';
         weightHelp.style.display = 'none';
     } else {
         weightGroup.style.display = 'none';
+        autoWeightGroup.style.display = 'none';
         comprehensiveGroup.style.display = 'none';
         weightHelp.style.display = 'none';
     }
@@ -868,7 +879,25 @@ function toggleAutoAlgorithm(checked) {
 }
 
 function updateHeuristicWeight(val) {
-    state.heuristicWeight = parseFloat(val) || 1.0;
+    // 如果自动调整开启，提示用户
+    if (state.autoWeight && state.currentAlgorithm === 'heuristic') {
+        if (confirm('权重自动调整已开启，手动修改权重将关闭自动调整。是否继续？')) {
+            state.autoWeight = false;
+            document.getElementById('autoWeight').checked = false;
+            state.heuristicWeight = parseFloat(val) || 1.0;
+        } else {
+            // 恢复原来的值
+            document.getElementById('heuristicWeight').value = state.heuristicWeight.toFixed(1);
+            return;
+        }
+    } else {
+        state.heuristicWeight = parseFloat(val) || 1.0;
+    }
+    updateAnalysis();
+}
+
+function toggleAutoWeight(checked) {
+    state.autoWeight = checked;
     updateAnalysis();
 }
 
@@ -1447,27 +1476,37 @@ function updateAnalysis() {
     window.lastStage = stage;
     
     // 动态调整启发式权重：前期权重较高，后期降低
-    if (stage === "前期") {
-        // 前期：探索更重要，权重较高（1.5-2.0）
-        state.heuristicWeight = Math.max(1.5, Math.min(2.0, 
-            state.heuristicWeight || 1.5
-        ));
-    } else if (stage === "中期") {
-        // 中期：平衡探索与利用（1.0-1.5）
-        state.heuristicWeight = Math.max(1.0, Math.min(1.5,
-            state.heuristicWeight || 1.0
-        ));
-    } else {
-        // 后期：更注重利用（0.5-1.0）
-        state.heuristicWeight = Math.max(0.5, Math.min(1.0,
-            state.heuristicWeight || 0.8
-        ));
+    if (state.autoWeight && state.currentAlgorithm === 'heuristic') {
+        if (stage === "前期") {
+            // 前期：探索更重要，权重较高（1.5-2.0）
+            state.heuristicWeight = Math.max(1.5, Math.min(2.0, 
+                state.heuristicWeight || 1.5
+            ));
+        } else if (stage === "中期") {
+            // 中期：平衡探索与利用（1.0-1.5）
+            state.heuristicWeight = Math.max(1.0, Math.min(1.5,
+                state.heuristicWeight || 1.0
+            ));
+        } else {
+            // 后期：更注重利用（0.5-1.0）
+            state.heuristicWeight = Math.max(0.5, Math.min(1.0,
+                state.heuristicWeight || 0.8
+            ));
+        }
     }
     
     // 更新权重输入框显示
     const weightInput = document.getElementById('heuristicWeight');
     if (weightInput) {
         weightInput.value = state.heuristicWeight.toFixed(1);
+        // 如果自动调整开启，将输入框设为只读
+        if (state.autoWeight && state.currentAlgorithm === 'heuristic') {
+            weightInput.readOnly = true;
+            weightInput.style.backgroundColor = '#f0f0f0';
+        } else {
+            weightInput.readOnly = false;
+            weightInput.style.backgroundColor = 'white';
+        }
     }
     
     // 处理算法选择逻辑

@@ -52,7 +52,7 @@
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: sticky;
             top: 20px;
-            overflow: hidden;
+            overflow: visible; /* 允许按钮显示在外部 */
             z-index: 100;
             flex-shrink: 0;
             /* 移除固定最小高度，让内容决定高度 */
@@ -66,7 +66,7 @@
 
         /* 电脑端折叠状态 - 基础样式，会被媒体查询覆盖 */
         .config-panel.collapsed {
-            width: 20px;
+            width: 10px;
             padding: 20px 5px;
             background: #eee;
             min-height: 400px; /* 保持与展开时相同的最小高度 */
@@ -80,21 +80,28 @@
         /* 切换按钮 - 基础样式，会被媒体查询覆盖 */
         .toggle-btn {
             position: absolute;
-            right: 0; 
+            right: -20px; /* 定位到侧边栏外部 */
             top: 50%;
             transform: translateY(-50%);
             background: var(--accent);
             color: white;
             border: none;
-            border-radius: 4px 0 0 4px;
-            width: 24px; 
-            height: 60px;
+            border-radius: 50%; /* 圆形 */
+            width: 40px; 
+            height: 40px;
             cursor: pointer;
             z-index: 110;
-            font-size: 12px;
+            font-size: 16px;
             display: flex; 
             align-items: center; 
             justify-content: center;
+            box-shadow: 0 4px 12px rgba(30, 144, 255, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .toggle-btn:hover {
+            background: #0a7be0;
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 6px 16px rgba(30, 144, 255, 0.4);
         }
 
         /* 移动端样式将在媒体查询中覆盖 */
@@ -208,7 +215,7 @@
                 overflow-y: auto; /* 允许滚动 */
             }
             .config-panel.collapsed {
-                width: 40px !important; /* 折叠宽度 */
+                width: 20px !important; /* 折叠宽度，更窄以适应圆形按钮 */
                 height: auto; /* 高度由内容决定 */
                 min-height: auto;
                 max-height: 700px; /* 与展开时相同的最大高度 */
@@ -226,17 +233,24 @@
             .toggle-btn {
                 position: absolute;
                 top: 50%;
-                right: -12px; /* 定位到侧边栏右侧外部 */
+                right: -20px; /* 定位到侧边栏右侧外部 */
                 transform: translateY(-50%);
-                width: 24px;
-                height: 60px;
-                border-radius: 4px 0 0 4px;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
                 background: var(--accent);
                 color: white;
                 z-index: 110;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                box-shadow: 0 4px 12px rgba(30, 144, 255, 0.3);
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .toggle-btn:hover {
+                background: #0a7be0;
+                transform: translateY(-50%) scale(1.1);
+                box-shadow: 0 6px 16px rgba(30, 144, 255, 0.4);
             }
         }
 
@@ -265,26 +279,37 @@
                 overflow-y: visible !important;
             }
             .config-panel.collapsed {
-                height: 50px; 
+                height: auto; 
                 width: 100% !important; 
-                padding: 10px 15px;
+                padding: 15px;
                 min-height: auto !important; /* 覆盖桌面端的最小高度 */
                 max-height: none !important;
                 overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
             }
             .toggle-btn {
                 position: relative; /* 覆盖桌面端的绝对定位 */
                 right: auto; 
                 top: auto;
                 transform: none;
-                width: 100%; 
+                width: 50px; /* 圆形按钮 */
                 height: 50px;
-                border-radius: 12px 12px 0 0;
-                background: rgba(30, 144, 255, 0.1);
-                color: var(--accent);
+                border-radius: 50%;
+                background: var(--accent);
+                color: white;
                 font-weight: bold;
-                font-size: 14px;
-                margin-bottom: 0;
+                font-size: 18px;
+                margin: 0 auto 10px auto; /* 居中 */
+                box-shadow: 0 4px 12px rgba(30, 144, 255, 0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .toggle-btn:hover {
+                background: #0a7be0;
+                transform: scale(1.05);
             }
             .grid-area {
                 max-width: 100%;
@@ -553,18 +578,16 @@ function toggleConfig() {
     if (panel.classList.contains('collapsed')) {
         // 折叠状态
         if (isMobile) {
-            btn.innerText = '🔽 展开';
-            // 移动端：按钮在顶部，不需要调整位置
+            btn.innerHTML = '🔽'; // 移动端使用向下箭头
         } else {
-            btn.innerText = '▶';
-            // 桌面端：按钮在右侧垂直居中，由CSS控制
+            btn.innerHTML = '▶'; // 桌面端使用向右箭头
         }
     } else {
         // 展开状态
         if (isMobile) {
-            btn.innerText = '🔼 收起';
+            btn.innerHTML = '🔼'; // 移动端使用向上箭头
         } else {
-            btn.innerText = '◀';
+            btn.innerHTML = '◀'; // 桌面端使用向左箭头
         }
     }
 }

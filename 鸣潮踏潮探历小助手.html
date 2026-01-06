@@ -55,33 +55,47 @@
             overflow: hidden;
             z-index: 100;
             flex-shrink: 0;
+            min-height: 400px; /* 确保最小高度，防止折叠时塌陷 */
         }
 
-        .config-content { transition: opacity 0.3s ease; }
+        .config-content { 
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
 
         /* 电脑端折叠状态 */
         .config-panel.collapsed {
             width: 20px;
             padding: 20px 5px;
             background: #eee;
+            min-height: 400px; /* 保持与展开时相同的最小高度 */
         }
-        .config-panel.collapsed .config-content { opacity: 0; pointer-events: none; }
+        .config-panel.collapsed .config-content { 
+            opacity: 0; 
+            visibility: hidden; 
+            pointer-events: none; 
+        }
 
-        /* 切换按钮 */
+        /* 切换按钮 - 桌面端样式 */
         .toggle-btn {
             position: absolute;
-            right: 0; top: 50%;
+            right: 0; 
+            top: 50%;
             transform: translateY(-50%);
             background: var(--accent);
             color: white;
             border: none;
             border-radius: 4px 0 0 4px;
-            width: 24px; height: 60px;
+            width: 24px; 
+            height: 60px;
             cursor: pointer;
             z-index: 110;
             font-size: 12px;
-            display: flex; align-items: center; justify-content: center;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
         }
+
+        /* 移动端样式将在媒体查询中覆盖 */
 
         /* --- 网格区域 --- */
         .grid-area { 
@@ -179,6 +193,27 @@
             }
         }
 
+        /* 桌面端样式优化 */
+        @media screen and (min-width: 769px) {
+            .config-panel {
+                min-height: 500px; /* 为桌面端提供更大的最小高度 */
+            }
+            .config-panel.collapsed {
+                min-height: 500px;
+            }
+            .toggle-btn {
+                position: absolute;
+                right: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 24px;
+                height: 60px;
+                border-radius: 4px 0 0 4px;
+                background: var(--accent);
+                color: white;
+            }
+        }
+
         /* 手机端适配 (关键修改) */
         @media screen and (max-width: 768px) {
             body {
@@ -199,15 +234,18 @@
                 height: auto;
                 border-radius: 12px;
                 max-width: 100%;
+                min-height: auto !important; /* 覆盖桌面端的最小高度 */
             }
             .config-panel.collapsed {
                 height: 50px; 
                 width: 100% !important; 
                 padding: 10px 15px;
+                min-height: auto !important; /* 覆盖桌面端的最小高度 */
             }
             .toggle-btn {
-                right: 0; 
-                top: 0; 
+                position: relative; /* 覆盖桌面端的绝对定位 */
+                right: auto; 
+                top: auto;
                 transform: none;
                 width: 100%; 
                 height: 50px;
@@ -216,6 +254,7 @@
                 color: var(--accent);
                 font-weight: bold;
                 font-size: 14px;
+                margin-bottom: 0;
             }
             .grid-area {
                 max-width: 100%;
@@ -482,9 +521,21 @@ function toggleConfig() {
     panel.classList.toggle('collapsed');
 
     if (panel.classList.contains('collapsed')) {
-        btn.innerText = isMobile ? '🔽 展开' : '▶';
+        // 折叠状态
+        if (isMobile) {
+            btn.innerText = '🔽 展开';
+            // 移动端：按钮在顶部，不需要调整位置
+        } else {
+            btn.innerText = '▶';
+            // 桌面端：按钮在右侧垂直居中，由CSS控制
+        }
     } else {
-        btn.innerText = isMobile ? '🔼 收起' : '◀';
+        // 展开状态
+        if (isMobile) {
+            btn.innerText = '🔼 收起';
+        } else {
+            btn.innerText = '◀';
+        }
     }
 }
 

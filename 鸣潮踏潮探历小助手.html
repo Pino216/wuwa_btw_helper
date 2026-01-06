@@ -441,6 +441,179 @@ function applyEvent(type) {
     updateAnalysis();
 }
 
+// 算法对象
+const Algorithms = {
+    // 贪心算法：使用现有逻辑
+    greedy: function(p, grid) {
+        let scores = [];
+        for (let i = 0; i < 49; i++) {
+            const r = Math.floor(i / 7), c = i % 7;
+            if (grid[i]) continue;
+            let gain = p[0] * 1;
+            let rg=0, cg=0, comb=0, cross=0, box=0;
+            for(let j=0; j<7; j++) {
+                if(!grid[r*7+j]) { rg++; comb++; }
+                if(!grid[j*7+c]) { cg++; if(j!==r) comb++; }
+            }
+            gain += p[1]*cg + p[2]*rg + p[3]*comb;
+            [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(o => {
+                let nr=r+o[0], nc=c+o[1];
+                if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) cross++;
+            });
+            for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+                let nr=r+dr, nc=c+dc;
+                if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) box++;
+            }
+            gain += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
+            scores.push({ i, score: gain });
+        }
+        return scores;
+    },
+    
+    // 带权启发式：f(n) = g(n) + w * h(n)
+    weighted: function(p, grid, weight) {
+        let scores = [];
+        // 计算每个格子的 g(n)（基础收益）
+        for (let i = 0; i < 49; i++) {
+            const r = Math.floor(i / 7), c = i % 7;
+            if (grid[i]) continue;
+            let g = 0;
+            // 基础收益计算（与贪心相同）
+            let rg=0, cg=0, comb=0, cross=0, box=0;
+            for(let j=0; j<7; j++) {
+                if(!grid[r*7+j]) { rg++; comb++; }
+                if(!grid[j*7+c]) { cg++; if(j!==r) comb++; }
+            }
+            g = p[0]*1 + p[1]*cg + p[2]*rg + p[3]*comb;
+            [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(o => {
+                let nr=r+o[0], nc=c+o[1];
+                if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) cross++;
+            });
+            for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+                let nr=r+dr, nc=c+dc;
+                if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) box++;
+            }
+            g += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
+            
+            // 启发式函数 h(n)：潜在覆盖率
+            // 计算该格子周围未开启格子的数量（3x3区域）
+            let h = 0;
+            for(let dr=-1;dr<=1;dr++) {
+                for(let dc=-1;dc<=1;dc++) {
+                    let nr=r+dr, nc=c+dc;
+                    if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) {
+                        h++;
+                    }
+                }
+            }
+            // 归一化 h 到 0-1 范围（最大9）
+            h = h / 9;
+            
+            const f = g + weight * h;
+            scores.push({ i, score: f });
+        }
+        return scores;
+    },
+    
+    // 熵减算法：优先分散未开启格子簇
+    entropy: function(p, grid) {
+        let scores = [];
+        // 首先，找出所有未开启格子的簇
+        // 使用简单的连通分量标记（4连通）
+        let visited = Array(49).fill(false);
+        let clusters = [];
+        for (let i = 0; i < 49; i++) {
+            if (!grid[i] && !visited[i]) {
+                let stack = [i];
+                let cluster = [];
+                while (stack.length > 0) {
+                    let idx = stack.pop();
+                    if (visited[idx]) continue;
+                    visited[idx] = true;
+                    cluster.push(idx);
+                    let r = Math.floor(idx / 7), c = idx % 7;
+                    // 上下左右
+                    let neighbors = [
+                        [r-1, c], [r+1, c], [r, c-1], [r, c+1]
+                    ];
+                    for (let [nr, nc] of neighbors) {
+                        if (nr>=0 && nr<7 && nc>=0 && nc<7) {
+                            let nIdx = nr*7 + nc;
+                            if (!grid[nIdx] && !visited[nIdx]) {
+                                stack.push(nIdx);
+                            }
+                        }
+                    }
+                }
+                clusters.push(cluster);
+            }
+        }
+        
+        // 计算每个格子的熵减分数
+        for (let i = 0; i < 49; i++) {
+            const r = Math.floor(i / 7), c = i % 7;
+            if (grid[i]) continue;
+            // 基础收益 g(n)
+            let g = 0;
+            let rg=0, cg=0, comb=0, cross=0, box=0;
+            for(let j=0; j<7; j++) {
+                if(!grid[r*7+j]) { rg++; comb++; }
+                if(!grid[j*7+c]) { cg++; if(j!==r) comb++; }
+            }
+            g = p[0]*1 + p[1]*cg + p[2]*rg + p[3]*comb;
+            [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(o => {
+                let nr=r+o[0], nc=c+o[1];
+                if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) cross++;
+            });
+            for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+                let nr=r+dr, nc=c+dc;
+                if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) box++;
+            }
+            g += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
+            
+            // 熵减分数：选择该格子后，剩余簇的数量变化
+            // 模拟选择该格子（临时标记为开启）
+            let tempGrid = [...grid];
+            tempGrid[i] = true;
+            // 重新计算簇的数量
+            let tempVisited = Array(49).fill(false);
+            let newClusters = 0;
+            for (let j = 0; j < 49; j++) {
+                if (!tempGrid[j] && !tempVisited[j]) {
+                    newClusters++;
+                    // 简单标记，不展开
+                    let stack = [j];
+                    while (stack.length > 0) {
+                        let idx = stack.pop();
+                        if (tempVisited[idx]) continue;
+                        tempVisited[idx] = true;
+                        let rr = Math.floor(idx / 7), cc = idx % 7;
+                        let neighbors = [
+                            [rr-1, cc], [rr+1, cc], [rr, cc-1], [rr, cc+1]
+                        ];
+                        for (let [nr, nc] of neighbors) {
+                            if (nr>=0 && nr<7 && nc>=0 && nc<7) {
+                                let nIdx = nr*7 + nc;
+                                if (!tempGrid[nIdx] && !tempVisited[nIdx]) {
+                                    stack.push(nIdx);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // 原始簇数量
+            let originalClusters = clusters.length;
+            // 熵减 = 原始簇数量 - 新簇数量（我们希望减少簇的数量）
+            let entropyReduction = originalClusters - newClusters;
+            // 分数 = g(n) + 熵减（归一化）
+            const score = g + entropyReduction * 0.5; // 调整系数
+            scores.push({ i, score: score });
+        }
+        return scores;
+    }
+};
+
 function updateAnalysis() {
     let unopened = 0;
     let scores = [];

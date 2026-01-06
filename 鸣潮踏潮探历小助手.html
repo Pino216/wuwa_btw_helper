@@ -854,7 +854,7 @@ function applyEvent(type) {
 
 // 算法对象
 const Algorithms = {
-    // 贪心算法：使用与其他算法相同的收益计算逻辑
+    // 贪心算法：使用与其他算法相同的收益计算逻辑，但分数需要与其他算法在同一数量级
     greedy: function(p, grid) {
         let scores = [];
         for (let i = 0; i < 49; i++) {
@@ -877,7 +877,11 @@ const Algorithms = {
                 if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) box++;
             }
             g += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
-            scores.push({ i, score: g });
+            // 将分数放大，与其他算法保持同一数量级
+            // 其他算法中，启发式项大约增加了50-100的分数
+            // 因此将贪心算法的分数乘以一个因子，使其在两位数范围内
+            const scaleFactor = 50;
+            scores.push({ i, score: g * scaleFactor });
         }
         return scores;
     },

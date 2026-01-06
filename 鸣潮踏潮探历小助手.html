@@ -344,14 +344,16 @@
                 max-width: 100%;
             }
             .grid {
-                grid-template-columns: repeat(7, 12vw);
+                grid-template-columns: repeat(7, 1fr);
                 gap: 3px;
                 padding: 8px;
                 border-radius: 12px;
+                max-width: 95vw;
             }
             .cell { 
-                width: 12vw; 
-                height: 12vw; 
+                width: 100%;
+                height: auto;
+                aspect-ratio: 1;
                 border-radius: 6px;
             }
             .cell .coord { 

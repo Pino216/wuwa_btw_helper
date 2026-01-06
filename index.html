@@ -1987,6 +1987,10 @@ function runSimulation(algorithmType, iterations = 1000) {
                 scores = Algorithms.entropy(p, grid);
             } else if (actualAlgorithm === 'comprehensive') {
                 scores = Algorithms.comprehensive(p, grid, heuristicWeight, state.comprehensiveAlgorithms);
+            } else if (actualAlgorithm === 'mcts') {
+                scores = Algorithms.mcts(p, grid, state.mctsIterations);
+            } else if (actualAlgorithm === 'fastMCTS') {
+                scores = Algorithms.fastMCTS(p, grid, Math.min(state.mctsIterations || 200, 100));
             } else {
                 scores = Algorithms.greedy(p, grid);
             }

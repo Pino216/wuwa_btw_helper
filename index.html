@@ -1152,30 +1152,67 @@ function applyEvent(type) {
 
 // 算法对象
 const Algorithms = {
-    // 贪心算法：计算基础收益，后续会统一归一化
+    // 贪心算法：根据用户概率自动调整权重的动态贪心算法
     greedy: function(p, grid) {
+        // 计算概率分布的特征
+        const type1Weight = p[0];  // 仅当前事件的概率
+        const colRowWeight = (p[1] + p[2] + p[3]) / 3;  // 行列相关事件的平均概率
+        const areaWeight = (p[4] + p[5]) / 2;  // 区域相关事件的平均概率
+        
         let scores = [];
         for (let i = 0; i < 49; i++) {
             const r = Math.floor(i / 7), c = i % 7;
             if (grid[i]) continue;
-            let g = 0;
-            // 基础收益计算（与其他算法保持一致）
+            
+            // 计算各项指标
             let rg=0, cg=0, comb=0, cross=0, box=0;
+            
+            // 计算行未开数
             for(let j=0; j<7; j++) {
-                if(!grid[r*7+j]) { rg++; comb++; }
-                if(!grid[j*7+c]) { cg++; if(j!==r) comb++; }
+                if(!grid[r*7+j]) { 
+                    rg++; 
+                }
             }
-            g = p[0]*1 + p[1]*cg + p[2]*rg + p[3]*comb;
+            
+            // 计算列未开数
+            for(let j=0; j<7; j++) {
+                if(!grid[j*7+c]) { 
+                    cg++; 
+                }
+            }
+            
+            // 计算行+列未开数（修正：减去重复计算的当前格子）
+            // 当前格子(r,c)在rg和cg中各被计算了一次，所以需要减1
+            comb = rg + cg - 1;
+            
+            // 计算十字未开数（包括自身）
             [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(o => {
                 let nr=r+o[0], nc=c+o[1];
                 if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) cross++;
             });
-            for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
-                let nr=r+dr, nc=c+dc;
-                if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) box++;
+            
+            // 计算九宫格未开数
+            for(let dr=-1;dr<=1;dr++) {
+                for(let dc=-1;dc<=1;dc++){
+                    let nr=r+dr, nc=c+dc;
+                    if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) box++;
+                }
             }
-            g += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
-            scores.push({ i, score: g });
+            
+            const totalUnopened = grid.filter(v=>!v).length;
+            
+            // 动态调整：根据概率重要性加权
+            // 当某种类型概率高时，增强对应指标的影响
+            const dynamicScore = 
+                p[0] * 1 * (1.0 + type1Weight * 0.5) +  // 类型1概率高时，更重视当前格子
+                p[1] * cg * (1.0 + colRowWeight * 1.5) +  // 行列概率高时，更重视列未开数
+                p[2] * rg * (1.0 + colRowWeight * 1.5) +  // 行列概率高时，更重视行未开数
+                p[3] * comb * (1.0 + colRowWeight * 2.0) +  // 行+列概率高时，更重视comb
+                p[4] * cross * (1.0 + areaWeight * 1.2) +  // 区域概率高时，增强十字影响
+                p[5] * box * (1.0 + areaWeight * 1.2) +  // 区域概率高时，增强九宫格影响
+                p[6] * totalUnopened * 0.3;  // 全开概率通常很低，权重降低
+            
+            scores.push({ i, score: dynamicScore });
         }
         return scores;
     },

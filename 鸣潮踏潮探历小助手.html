@@ -137,34 +137,146 @@
         .prob-input-group { margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
         .prob-input-group input { width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
         .status-bar { margin-top: 15px; padding: 10px; border-radius: 10px; background: #fff; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); width: 100%; text-align: center; }
-        .btn-reset { margin-top: 15px; width: 100%; padding: 12px; background: #2d3436; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-reset { 
+            margin-top: 15px; 
+            width: 100%; 
+            padding: 14px; 
+            background: #2d3436; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 16px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        @media screen and (max-width: 768px) {
+            .btn-reset {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
 
         /* 手机端适配 (关键修改) */
         @media screen and (max-width: 768px) {
-            .layout { flex-direction: column; align-items: center; }
+            body {
+                padding: 10px;
+            }
+            .layout { 
+                flex-direction: column; 
+                align-items: center;
+                gap: 10px;
+            }
             .config-panel {
-                position: relative; top: 0; width: 90% !important; order: 2;
-                margin-top: 20px; padding: 15px; height: auto;
+                position: relative; 
+                top: 0; 
+                width: 100% !important; 
+                order: 2;
+                margin-top: 10px; 
+                padding: 15px; 
+                height: auto;
+                border-radius: 12px;
             }
             .config-panel.collapsed {
-                height: 45px; width: 90% !important; padding: 10px 15px;
+                height: 50px; 
+                width: 100% !important; 
+                padding: 10px 15px;
             }
             .toggle-btn {
-                right: 0; top: 0; transform: none;
-                width: 100%; height: 45px;
-                border-radius: 16px 16px 0 0;
+                right: 0; 
+                top: 0; 
+                transform: none;
+                width: 100%; 
+                height: 50px;
+                border-radius: 12px 12px 0 0;
                 background: rgba(30, 144, 255, 0.1);
                 color: var(--accent);
                 font-weight: bold;
+                font-size: 14px;
             }
             .grid {
-                grid-template-columns: repeat(7, 11vw);
-                gap: 4px;
-                padding: 10px;
+                grid-template-columns: repeat(7, 12vw);
+                gap: 3px;
+                padding: 8px;
+                border-radius: 12px;
             }
-            .cell { width: 11vw; height: 11vw; }
-            .watermark { display: none; }
-            .header h2 { font-size: 20px; }
+            .cell { 
+                width: 12vw; 
+                height: 12vw; 
+                border-radius: 6px;
+            }
+            .cell .coord { 
+                font-size: 7px; 
+                top: 1px; 
+                left: 2px; 
+            }
+            .cell .score { 
+                font-size: 9px; 
+                margin-top: 2px; 
+            }
+            .watermark { 
+                display: none; 
+            }
+            .header { 
+                margin-bottom: 10px; 
+            }
+            .header h2 { 
+                font-size: 18px; 
+                padding: 0 10px;
+                text-align: center;
+            }
+            .status-bar {
+                margin-top: 10px;
+                padding: 8px;
+                font-size: 12px;
+                border-radius: 8px;
+            }
+            .prob-input-group {
+                font-size: 12px;
+                margin-bottom: 6px;
+            }
+            .prob-input-group input {
+                width: 45px;
+                padding: 3px;
+                font-size: 12px;
+            }
+            h3 {
+                font-size: 14px !important;
+                margin-top: 15px !important;
+            }
+            #simResults {
+                font-size: 11px;
+            }
+            #simResultsContent {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            #simResultsContent table {
+                font-size: 10px;
+                min-width: 300px;
+            }
+            #simResultsContent div[style*="grid-template-columns"] {
+                grid-template-columns: repeat(7, 1fr);
+                gap: 1px;
+            }
+            #simResultsContent div[style*="grid-template-columns"] div {
+                font-size: 7px;
+                padding: 2px;
+            }
+        }
+        
+        /* 超小屏幕适配 */
+        @media screen and (max-width: 360px) {
+            .grid {
+                grid-template-columns: repeat(7, 11vw);
+            }
+            .cell { 
+                width: 11vw; 
+                height: 11vw; 
+            }
+            .header h2 { 
+                font-size: 16px; 
+            }
         }
 
         /* 浮动菜单 */
@@ -243,10 +355,10 @@
                     <label>模拟次数</label>
                     <input type="number" id="simIterations" value="1000" min="10" max="10000" style="width:70px;">
                 </div>
-                <button class="btn-reset" onclick="runBatchSimulation()" style="margin-top:10px; background:var(--accent);">开始批量模拟</button>
+                <button class="btn-reset" onclick="runBatchSimulation()" style="margin-top:10px; background:var(--accent); padding: 12px; font-size: 14px;">开始批量模拟</button>
                 <div id="simResults" style="margin-top:15px; font-size:12px; display:none;">
                     <h4 style="margin:0 0 8px 0;">模拟结果</h4>
-                    <div id="simResultsContent"></div>
+                    <div id="simResultsContent" style="overflow-x: auto;"></div>
                 </div>
             </div>
             
@@ -419,8 +531,33 @@ function showMenu(r, c, e) {
     activePos = { r, c };
     const menu = document.getElementById('menu');
     menu.style.display = 'block';
-    menu.style.left = Math.min(e.pageX, window.innerWidth - 200) + 'px';
-    menu.style.top = Math.min(e.pageY, window.innerHeight - 300) + 'px';
+    
+    // 获取点击位置
+    const clickX = e.clientX || e.pageX;
+    const clickY = e.clientY || e.pageY;
+    
+    // 菜单尺寸
+    const menuWidth = 200;
+    const menuHeight = 300;
+    
+    // 计算位置，确保在视口内
+    let left = clickX;
+    let top = clickY;
+    
+    // 检查右边界
+    if (left + menuWidth > window.innerWidth) {
+        left = window.innerWidth - menuWidth - 10;
+    }
+    // 检查下边界
+    if (top + menuHeight > window.innerHeight) {
+        top = window.innerHeight - menuHeight - 10;
+    }
+    // 确保不小于0
+    left = Math.max(10, left);
+    top = Math.max(10, top);
+    
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
 }
 
 function closeMenu() { document.getElementById('menu').style.display = 'none'; }
@@ -826,7 +963,10 @@ function updateAnalysis() {
         document.getElementById('winMessage').innerText = `已锁定全图坐标！本轮共反馈 ${state.clicks} 次。`;
         localStorage.removeItem(STORAGE_KEY);
     }
-    document.getElementById('statusBar').innerText = `剩余: ${unopened} | 本局点击: ${state.clicks} | 未触发: ${state.currentMisses}`;
+    const statusText = window.innerWidth <= 768 
+        ? `剩余:${unopened} 点击:${state.clicks} 未触发:${state.currentMisses}`
+        : `剩余: ${unopened} | 本局点击: ${state.clicks} | 未触发: ${state.currentMisses}`;
+    document.getElementById('statusBar').innerText = statusText;
     saveState();
 }
 

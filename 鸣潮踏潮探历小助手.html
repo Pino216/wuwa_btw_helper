@@ -1385,35 +1385,51 @@ function updateAnalysis() {
     // 更新显示
     document.getElementById('currentMissesDisplay').textContent = state.currentMisses;
 
-    // 计算所有算法的分数，并统一归一化
+    // 计算所有算法的分数，并统一到相同的总分尺度
     const allScores = {
         greedy: Algorithms.greedy(p, state.grid),
         heuristic: Algorithms.heuristic(p, state.grid, state.heuristicWeight),
         entropy: Algorithms.entropy(p, state.grid)
     };
     
-    // 找到所有分数中的最大值和最小值，用于归一化
-    let allValues = [];
-    Object.values(allScores).forEach(algScores => {
-        algScores.forEach(s => allValues.push(s.score));
+    // 计算每个算法的总分
+    const algorithmTotals = {};
+    Object.keys(allScores).forEach(alg => {
+        algorithmTotals[alg] = allScores[alg].reduce((sum, s) => sum + s.score, 0);
     });
-    const minScore = Math.min(...allValues);
-    const maxScore = Math.max(...allValues);
-    const range = maxScore - minScore;
     
-    // 归一化函数：将分数映射到0-100范围
-    const normalize = (score) => {
-        if (range === 0) return 50;
-        return ((score - minScore) / range) * 100;
-    };
+    // 找到目标总分：使用贪心算法的总分作为基准（因为它最稳定）
+    const targetTotal = algorithmTotals.greedy;
     
-    // 归一化每个算法的分数
+    // 调整每个算法的分数，使它们的总分与目标总分一致
     const normalizedScores = {};
     Object.keys(allScores).forEach(alg => {
+        const currentTotal = algorithmTotals[alg];
+        const scaleFactor = currentTotal > 0 ? targetTotal / currentTotal : 1;
+        
         normalizedScores[alg] = allScores[alg].map(s => ({
             i: s.i,
-            score: normalize(s.score)
+            score: s.score * scaleFactor
         }));
+    });
+    
+    // 现在所有算法的总分应该大致相同，但为了更好的显示，可以再进行一次归一化到0-100
+    // 收集所有调整后的分数
+    let allNormalizedValues = [];
+    Object.values(normalizedScores).forEach(algScores => {
+        algScores.forEach(s => allNormalizedValues.push(s.score));
+    });
+    const minScore = Math.min(...allNormalizedValues);
+    const maxScore = Math.max(...allNormalizedValues);
+    const range = maxScore - minScore;
+    
+    // 最终归一化到0-100
+    Object.keys(normalizedScores).forEach(alg => {
+        normalizedScores[alg] = normalizedScores[alg].map(s => {
+            if (range === 0) return { i: s.i, score: 50 };
+            const normalizedScore = ((s.score - minScore) / range) * 100;
+            return { i: s.i, score: normalizedScore };
+        });
     });
     
     // 计算综合分数：三个算法分数的平均值

@@ -1299,10 +1299,11 @@ function runBatchSimulation() {
     
     // 使用 setTimeout 避免阻塞 UI
     setTimeout(() => {
-        // 运行当前算法（使用实际算法）
-        const currentResults = runSimulation(actualAlgorithm, iterations);
-        // 运行基础贪心算法作为对比
-        const greedyResults = runSimulation('greedy', iterations);
+        try {
+            // 运行当前算法（使用实际算法）
+            const currentResults = runSimulation(actualAlgorithm, iterations);
+            // 运行基础贪心算法作为对比
+            const greedyResults = runSimulation('greedy', iterations);
         
         // 计算统计信息
         const calcStats = (arr) => {
@@ -1338,12 +1339,20 @@ function runBatchSimulation() {
             }
             const p = adjustedProbs.map(v => v / 100);
             
+            // 对于热力图，我们需要根据开局状态重新计算算法
+            // 开局时所有格子都未开启，所以未开启格子数为49
+            let heatmapAlgorithm = actualAlgorithm;
+            if (heatmapAlgorithm === 'auto' || state.autoAlgorithm) {
+                // 开局时未开启格子数为49，大于35，所以使用heuristic
+                heatmapAlgorithm = 'heuristic';
+            }
+            
             let scores;
-            if (actualAlgorithm === 'greedy') {
+            if (heatmapAlgorithm === 'greedy') {
                 scores = Algorithms.greedy(p, grid);
-            } else if (actualAlgorithm === 'heuristic') {
+            } else if (heatmapAlgorithm === 'heuristic') {
                 scores = Algorithms.heuristic(p, grid, state.heuristicWeight);
-            } else if (actualAlgorithm === 'entropy') {
+            } else if (heatmapAlgorithm === 'entropy') {
                 scores = Algorithms.entropy(p, grid);
             }
             
@@ -1408,7 +1417,11 @@ function runBatchSimulation() {
             </div>
         `;
         
-        contentDiv.innerHTML = html;
+            contentDiv.innerHTML = html;
+        } catch (error) {
+            console.error('模拟过程中出现错误:', error);
+            contentDiv.innerHTML = `<p style="color:red;">模拟过程中出现错误: ${error.message}</p>`;
+        }
     }, 10);
 }
 

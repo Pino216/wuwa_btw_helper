@@ -1056,22 +1056,45 @@ function runSimulation(algorithmType, iterations = 1000) {
         
         // 选择事件类型（考虑保底）
         const chooseEventType = () => {
+            // 检查是否达到最大保底次数，如果是则必触发非类型1事件
+            if (enablePity && currentMisses >= pityMax) {
+                // 必触发非类型1事件（2-7）
+                // 随机选择2-7中的一种，按原始概率比例
+                const nonType1Probs = baseProbs.slice(1); // 获取类型2-7的概率
+                const totalNonType1 = nonType1Probs.reduce((a, b) => a + b, 0);
+                const normalizedNonType1 = nonType1Probs.map(p => p / totalNonType1);
+                
+                const rand = Math.random();
+                let accum = 0;
+                for (let i = 0; i < 6; i++) {
+                    accum += normalizedNonType1[i];
+                    if (rand <= accum) return i + 2; // 返回2-7
+                }
+                return 7; // 默认
+            }
+            
             // 动态概率调整
             let adjustedProbs = [...baseProbs];
             if (enablePity && currentMisses >= pityStart) {
                 const progress = Math.min((currentMisses - pityStart + 1) / (pityMax - pityStart + 1), 1.0);
-                const factor = 1 + 0.5 * progress;
-                for (let i = 0; i < 6; i++) {
-                    adjustedProbs[i] = baseProbs[i] * factor;
-                }
-                const total = adjustedProbs.reduce((a, b) => a + b, 0);
-                for (let i = 0; i < 7; i++) {
-                    adjustedProbs[i] = (adjustedProbs[i] * 100) / total;
+                // 逐步增加非类型1事件的概率
+                // 类型1的概率减少，其他类型的概率按比例增加
+                const type1Reduction = 0.5 * progress; // 最多减少50%
+                adjustedProbs[0] = baseProbs[0] * (1 - type1Reduction);
+                
+                // 将减少的概率分配到其他类型
+                const reductionAmount = baseProbs[0] * type1Reduction;
+                const otherTotal = baseProbs.slice(1).reduce((a, b) => a + b, 0);
+                
+                for (let i = 1; i < 7; i++) {
+                    adjustedProbs[i] = baseProbs[i] + (reductionAmount * (baseProbs[i] / otherTotal));
                 }
             }
+            
             // 归一化
             const sum = adjustedProbs.reduce((a, b) => a + b, 0);
             const normalized = adjustedProbs.map(p => p / sum);
+            
             // 随机选择
             const rand = Math.random();
             let accum = 0;
@@ -1084,17 +1107,39 @@ function runSimulation(algorithmType, iterations = 1000) {
         
         // 选择最佳格子
         const chooseBestCell = (grid, algorithmType) => {
-            // 动态概率调整（用于计算分数）
+            // 动态概率调整（用于计算分数，与chooseEventType一致）
             let adjustedProbs = [...baseProbs];
             if (enablePity && currentMisses >= pityStart) {
                 const progress = Math.min((currentMisses - pityStart + 1) / (pityMax - pityStart + 1), 1.0);
-                const factor = 1 + 0.5 * progress;
-                for (let i = 0; i < 6; i++) {
-                    adjustedProbs[i] = baseProbs[i] * factor;
+                
+                // 如果达到最大保底次数，类型1的概率为0
+                if (currentMisses >= pityMax) {
+                    adjustedProbs[0] = 0;
+                    // 其他类型的概率按原始比例分配
+                    const otherTotal = baseProbs.slice(1).reduce((a, b) => a + b, 0);
+                    for (let i = 1; i < 7; i++) {
+                        adjustedProbs[i] = (baseProbs[i] / otherTotal) * 100;
+                    }
+                } else {
+                    // 逐步调整概率
+                    const type1Reduction = 0.5 * progress;
+                    adjustedProbs[0] = baseProbs[0] * (1 - type1Reduction);
+                    
+                    // 将减少的概率分配到其他类型
+                    const reductionAmount = baseProbs[0] * type1Reduction;
+                    const otherTotal = baseProbs.slice(1).reduce((a, b) => a + b, 0);
+                    
+                    for (let i = 1; i < 7; i++) {
+                        adjustedProbs[i] = baseProbs[i] + (reductionAmount * (baseProbs[i] / otherTotal));
+                    }
                 }
+                
+                // 确保总和为100
                 const total = adjustedProbs.reduce((a, b) => a + b, 0);
-                for (let i = 0; i < 7; i++) {
-                    adjustedProbs[i] = (adjustedProbs[i] * 100) / total;
+                if (total > 0) {
+                    for (let i = 0; i < 7; i++) {
+                        adjustedProbs[i] = (adjustedProbs[i] * 100) / total;
+                    }
                 }
             }
             const p = adjustedProbs.map(v => v / 100);
@@ -1283,20 +1328,39 @@ function updateAnalysis() {
         }
     }
     
-    // 动态概率调整
+    // 动态概率调整（与模拟中的逻辑一致）
     let adjustedProbs = [...state.probs];
     if (state.enablePity && state.currentMisses >= state.pityStart) {
         const progress = Math.min((state.currentMisses - state.pityStart + 1) / (state.pityMax - state.pityStart + 1), 1.0);
-        const factor = 1 + 0.5 * progress; // 最大增加50%
         
-        // 只调整前6个权重
-        for (let i = 0; i < 6; i++) {
-            adjustedProbs[i] = state.probs[i] * factor;
+        // 如果达到最大保底次数，类型1的概率为0，其他类型概率按比例增加
+        if (state.currentMisses >= state.pityMax) {
+            adjustedProbs[0] = 0;
+            // 其他类型的概率按原始比例分配
+            const otherTotal = state.probs.slice(1).reduce((a, b) => a + b, 0);
+            for (let i = 1; i < 7; i++) {
+                adjustedProbs[i] = (state.probs[i] / otherTotal) * 100;
+            }
+        } else {
+            // 逐步调整概率
+            const type1Reduction = 0.5 * progress; // 最多减少50%
+            adjustedProbs[0] = state.probs[0] * (1 - type1Reduction);
+            
+            // 将减少的概率分配到其他类型
+            const reductionAmount = state.probs[0] * type1Reduction;
+            const otherTotal = state.probs.slice(1).reduce((a, b) => a + b, 0);
+            
+            for (let i = 1; i < 7; i++) {
+                adjustedProbs[i] = state.probs[i] + (reductionAmount * (state.probs[i] / otherTotal));
+            }
         }
-        // 重新归一化到总和100
+        
+        // 确保总和为100
         const total = adjustedProbs.reduce((a, b) => a + b, 0);
-        for (let i = 0; i < 7; i++) {
-            adjustedProbs[i] = (adjustedProbs[i] * 100) / total;
+        if (total > 0) {
+            for (let i = 0; i < 7; i++) {
+                adjustedProbs[i] = (adjustedProbs[i] * 100) / total;
+            }
         }
     }
     
@@ -1459,17 +1523,39 @@ function runBatchSimulation() {
             // 创建一个新的模拟，但只记录第一步
             const grid = Array(49).fill(false);
             let currentMisses = 0;
-            // 动态概率调整（与之前相同）
+            // 动态概率调整（与chooseEventType一致）
             let adjustedProbs = [...state.probs];
             if (state.enablePity && currentMisses >= state.pityStart) {
                 const progress = Math.min((currentMisses - state.pityStart + 1) / (state.pityMax - state.pityStart + 1), 1.0);
-                const factor = 1 + 0.5 * progress;
-                for (let j = 0; j < 6; j++) {
-                    adjustedProbs[j] = state.probs[j] * factor;
+                
+                // 如果达到最大保底次数，类型1的概率为0
+                if (currentMisses >= state.pityMax) {
+                    adjustedProbs[0] = 0;
+                    // 其他类型的概率按原始比例分配
+                    const otherTotal = state.probs.slice(1).reduce((a, b) => a + b, 0);
+                    for (let j = 1; j < 7; j++) {
+                        adjustedProbs[j] = (state.probs[j] / otherTotal) * 100;
+                    }
+                } else {
+                    // 逐步调整概率
+                    const type1Reduction = 0.5 * progress;
+                    adjustedProbs[0] = state.probs[0] * (1 - type1Reduction);
+                    
+                    // 将减少的概率分配到其他类型
+                    const reductionAmount = state.probs[0] * type1Reduction;
+                    const otherTotal = state.probs.slice(1).reduce((a, b) => a + b, 0);
+                    
+                    for (let j = 1; j < 7; j++) {
+                        adjustedProbs[j] = state.probs[j] + (reductionAmount * (state.probs[j] / otherTotal));
+                    }
                 }
+                
+                // 确保总和为100
                 const total = adjustedProbs.reduce((a, b) => a + b, 0);
-                for (let j = 0; j < 7; j++) {
-                    adjustedProbs[j] = (adjustedProbs[j] * 100) / total;
+                if (total > 0) {
+                    for (let j = 0; j < 7; j++) {
+                        adjustedProbs[j] = (adjustedProbs[j] * 100) / total;
+                    }
                 }
             }
             const p = adjustedProbs.map(v => v / 100);

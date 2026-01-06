@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>鸣潮·踏潮探历算法助手 🤖</title>
+    <style>
+        :root {
+            --bg: #f4f7f6;
+            --primary: #2ed573;
+            --danger: #ff4757;
+            --accent: #1e90ff;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-sub: #666666;
+            --grid-gap: 6px;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        /* 顶部标题 */
+        .header { text-align: center; margin-bottom: 20px; width: 100%; }
+        .header h2 { margin: 0; font-size: 24px; letter-spacing: 1px; }
+
+        /* 核心布局 */
+        .layout {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+            transition: all 0.4s ease;
+        }
+
+        /* --- 配置面板 (响应式) --- */
+        .config-panel {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            width: 280px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: sticky;
+            top: 20px;
+            overflow: hidden;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .config-content { transition: opacity 0.3s ease; }
+
+        /* 电脑端折叠状态 */
+        .config-panel.collapsed {
+            width: 20px;
+            padding: 20px 5px;
+            background: #eee;
+        }
+        .config-panel.collapsed .config-content { opacity: 0; pointer-events: none; }
+
+        /* 切换按钮 */
+        .toggle-btn {
+            position: absolute;
+            right: 0; top: 50%;
+            transform: translateY(-50%);
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px 0 0 4px;
+            width: 24px; height: 60px;
+            cursor: pointer;
+            z-index: 110;
+            font-size: 12px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* --- 网格区域 --- */
+        .grid-area { flex: 0 1 auto; display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(7, 55px);
+            gap: var(--grid-gap);
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 16px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 隐形水印 */
+        .grid::after {
+            content: "Designed by @Dark噫术家";
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 24px;
+            color: rgba(0, 0, 0, 0.04);
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .cell {
+            width: 55px; height: 55px;
+            background: #f8f9fa;
+            border: 1px solid #eee;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: pointer; border-radius: 8px;
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1;
+        }
+
+        .cell:hover:not(.opened) { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: var(--accent); }
+        .cell .coord { font-size: 8px; color: #ccc; position: absolute; top: 2px; left: 4px; }
+        .cell .score { font-size: 11px; font-weight: bold; margin-top: 4px; }
+
+        .cell.opened { background: #fff !important; border-color: #f0f0f0; cursor: default; }
+        .cell.opened::after { content: '✅'; font-size: 16px; }
+        .cell.opened .score, .cell.opened .coord { display: none; }
+
+        .cell.best { background: var(--danger) !important; color: white; z-index: 5; box-shadow: 0 0 15px rgba(255,71,87,0.4); border: none; }
+        .cell.good { background: #ffa502 !important; color: white; z-index: 4; border: none; }
+
+        /* 其他组件 */
+        .prob-input-group { margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+        .prob-input-group input { width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
+        .status-bar { margin-top: 15px; padding: 10px; border-radius: 10px; background: #fff; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); width: 100%; text-align: center; }
+        .btn-reset { margin-top: 15px; width: 100%; padding: 12px; background: #2d3436; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        /* 手机端适配 (关键修改) */
+        @media screen and (max-width: 768px) {
+            .layout { flex-direction: column; align-items: center; }
+            .config-panel {
+                position: relative; top: 0; width: 90% !important; order: 2;
+                margin-top: 20px; padding: 15px; height: auto;
+            }
+            .config-panel.collapsed {
+                height: 45px; width: 90% !important; padding: 10px 15px;
+            }
+            .toggle-btn {
+                right: 0; top: 0; transform: none;
+                width: 100%; height: 45px;
+                border-radius: 16px 16px 0 0;
+                background: rgba(30, 144, 255, 0.1);
+                color: var(--accent);
+                font-weight: bold;
+            }
+            .grid {
+                grid-template-columns: repeat(7, 11vw);
+                gap: 4px;
+                padding: 10px;
+            }
+            .cell { width: 11vw; height: 11vw; }
+            .watermark { display: none; }
+            .header h2 { font-size: 20px; }
+        }
+
+        /* 浮动菜单 */
+        #menu { display: none; position: fixed; background: white; border-radius: 12px; box-shadow: 0 15px 50px rgba(0,0,0,0.2); padding: 15px; z-index: 1000; min-width: 180px; }
+        .menu-btn { display: block; width: 100%; padding: 10px; margin-bottom: 6px; border: none; background: #f8f9fa; border-radius: 8px; cursor: pointer; text-align: left; font-size: 13px; }
+        .menu-btn:hover { background: var(--accent); color: white; }
+
+        .watermark { position: fixed; top: 15px; right: 15px; background: rgba(255,255,255,0.9); padding: 8px 12px; border-radius: 10px; border-left: 4px solid var(--accent); box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 1000; font-size: 12px; }
+
+        /* 恭喜弹窗 */
+        #winOverlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 2000;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        .win-card { background: #fff; padding: 30px; border-radius: 20px; text-align: center; width: 80%; max-width: 320px; animation: popIn 0.5s ease forwards; }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="watermark">
+    <b>📺 B站@Dark噫术家</b>
+</div>
+
+<div class="header">
+    <h2>鸣潮✨踏潮探历小助手 🤖</h2>
+</div>
+
+<div class="layout">
+    <div class="config-panel" id="configPanel">
+        <button class="toggle-btn" onclick="toggleConfig()" id="toggleBtn">◀</button>
+        <div class="config-content">
+            <h3 style="margin-top:0; font-size:16px;">⚙️ 概率权重</h3>
+            <div id="probInputs"></div>
+            <div id="probWarning" style="font-size: 12px; margin: 8px 0;"></div>
+            <button class="btn-reset" onclick="confirmReset()">🔄 重置进度</button>
+        </div>
+    </div>
+
+    <div class="grid-area">
+        <div class="grid" id="grid"></div>
+        <div class="status-bar" id="statusBar">⏳ 等待操作...</div>
+    </div>
+</div>
+
+<div id="menu">
+    <h4 style="margin:0 0 10px 0; font-size:14px;">✨ 触发事件</h4>
+    <div id="menuButtons"></div>
+    <button class="menu-btn" onclick="closeMenu()" style="background:#eee; text-align:center; margin-top:5px;">取消</button>
+</div>
+
+<div id="winOverlay">
+    <div class="win-card">
+        <h2>🎉 探历达成！</h2>
+        <p id="winMessage" style="color:#666; font-size:14px; line-height:1.6;"></p>
+        <button onclick="confirmReset()" style="padding: 10px 20px; background: var(--primary); color:white; border:none; border-radius:8px; cursor:pointer; width:100%; font-weight:bold;">开启新一轮 🚀</button>
+    </div>
+</div>
+
+<script>
+const size = 7;
+const STORAGE_KEY = 'MC_EVENT_HELPER_V1.2_MOBILE';
+const defaultData = {
+    grid: Array(size * size).fill(false),
+    probs: [33, 14, 14, 7, 18, 13, 1],
+    clicks: 0
+};
+
+let state = loadState();
+let activePos = { r: -1, c: -1 };
+
+// --- 适配与折叠逻辑 ---
+function toggleConfig() {
+    const panel = document.getElementById('configPanel');
+    const btn = document.getElementById('toggleBtn');
+    const isMobile = window.innerWidth <= 768;
+
+    panel.classList.toggle('collapsed');
+
+    if (panel.classList.contains('collapsed')) {
+        btn.innerText = isMobile ? '🔽 展开配置参数' : '▶';
+    } else {
+        btn.innerText = isMobile ? '🔼 收起配置参数' : '◀';
+    }
+}
+
+function loadState() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultData));
+}
+
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function init() {
+    // 渲染输入框
+    const probContainer = document.getElementById('probInputs');
+    probContainer.innerHTML = '';
+    const labels = ["仅当前 📍", "同列 ↕️", "同行 ↔️", "同行同列 ➕", "十字 💠", "九宫格 🍷", "全开 🌟"];
+
+    labels.forEach((label, i) => {
+        const div = document.createElement('div');
+        div.className = 'prob-input-group';
+        div.innerHTML = `<label>${label}</label><input type="number" id="p${i}" value="${state.probs[i]}" onchange="updateProbs(${i}, this.value)">`;
+        probContainer.appendChild(div);
+    });
+
+    // 渲染网格
+    const gridEl = document.getElementById('grid');
+    gridEl.innerHTML = '';
+    for (let i = 0; i < 49; i++) {
+        const r = Math.floor(i / 7), c = i % 7;
+        const cell = document.createElement('div');
+        cell.className = 'cell' + (state.grid[i] ? ' opened' : '');
+        cell.id = `cell-${i}`;
+        cell.innerHTML = `<span class="coord">${r+1},${c+1}</span><span class="score" id="s-${i}">0</span>`;
+        cell.onclick = (e) => showMenu(r, c, e);
+        gridEl.appendChild(cell);
+    }
+
+    // 渲染菜单按钮
+    const menuBtns = document.getElementById('menuButtons');
+    menuBtns.innerHTML = '';
+    labels.forEach((label, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'menu-btn';
+        btn.innerText = label;
+        btn.onclick = () => applyEvent(i + 1);
+        menuBtns.appendChild(btn);
+    });
+    updateAnalysis();
+}
+
+// --- 音效系统 ---
+function playEffect(type) {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    const osc = (f, s, d, w='sine') => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = w; o.frequency.setValueAtTime(f, s);
+        g.gain.setValueAtTime(0.08, s); g.gain.exponentialRampToValueAtTime(0.0001, s + d);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(s); o.stop(s + d);
+    };
+    if(type === 1) osc(880, now, 0.1);
+    else if(type === 7) [523, 659, 783, 1046].forEach((f, i) => osc(f, now + i*0.1, 0.5));
+    else osc(587, now, 0.15, 'triangle');
+}
+
+// --- 逻辑处理 ---
+function updateProbs(i, val) { state.probs[i] = parseInt(val) || 0; updateAnalysis(); }
+
+function showMenu(r, c, e) {
+    if (state.grid[r * 7 + c]) return;
+    activePos = { r, c };
+    const menu = document.getElementById('menu');
+    menu.style.display = 'block';
+    menu.style.left = Math.min(e.pageX, window.innerWidth - 200) + 'px';
+    menu.style.top = Math.min(e.pageY, window.innerHeight - 300) + 'px';
+}
+
+function closeMenu() { document.getElementById('menu').style.display = 'none'; }
+
+function applyEvent(type) {
+    playEffect(type);
+    const { r, c } = activePos;
+    const mark = (row, col) => {
+        if (row >= 0 && row < 7 && col >= 0 && col < 7) {
+            const idx = row * 7 + col;
+            state.grid[idx] = true;
+            document.getElementById(`cell-${idx}`).classList.add('opened');
+        }
+    };
+    if (type === 1) mark(r, c);
+    else if (type === 2) for(let i=0; i<7; i++) mark(i, c);
+    else if (type === 3) for(let i=0; i<7; i++) mark(r, i);
+    else if (type === 4) { for(let i=0; i<7; i++) { mark(i, c); mark(r, i); } }
+    else if (type === 5) { mark(r, c); mark(r-1,c); mark(r+1,c); mark(r,c-1); mark(r,c+1); }
+    else if (type === 6) { for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) mark(r+i, c+j); }
+    else if (type === 7) { state.grid.fill(true); init(); }
+
+    state.clicks++;
+    closeMenu();
+    updateAnalysis();
+}
+
+function updateAnalysis() {
+    let unopened = 0;
+    let scores = [];
+    const p = state.probs.map(v => v / 100);
+    const totalP = state.probs.reduce((a, b) => a + b, 0);
+    const warningEl = document.getElementById('probWarning');
+    warningEl.innerText = `当前总权重: ${totalP}%`;
+    warningEl.style.color = totalP === 100 ? 'var(--primary)' : 'var(--danger)';
+
+    for (let i = 0; i < 49; i++) {
+        const r = Math.floor(i / 7), c = i % 7;
+        const el = document.getElementById(`cell-${i}`);
+        el.classList.remove('best', 'good');
+        if (state.grid[i]) continue;
+        unopened++;
+
+        let gain = p[0] * 1;
+        let rg=0, cg=0, comb=0, cross=0, box=0;
+        for(let j=0; j<7; j++) {
+            if(!state.grid[r*7+j]) { rg++; comb++; }
+            if(!state.grid[j*7+c]) { cg++; if(j!==r) comb++; }
+        }
+        gain += p[1]*cg + p[2]*rg + p[3]*comb;
+        [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(o => {
+            let nr=r+o[0], nc=c+o[1];
+            if(nr>=0&&nr<7&&nc>=0&&nc<7 && !state.grid[nr*7+nc]) cross++;
+        });
+        for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+            let nr=r+dr, nc=c+dc;
+            if(nr>=0&&nr<7&&nc>=0&&nc<7 && !state.grid[nr*7+nc]) box++;
+        }
+        gain += p[4]*cross + p[5]*box + p[6]*(state.grid.filter(v=>!v).length);
+
+        document.getElementById(`s-${i}`).innerText = gain.toFixed(1);
+        scores.push({ i, score: gain });
+    }
+
+    if(scores.length > 0){
+        const max = Math.max(...scores.map(s => s.score));
+        scores.forEach(s => {
+            if(s.score === max && max > 0) document.getElementById(`cell-${s.i}`).classList.add('best');
+            else if(s.score > max * 0.8 && max > 0) document.getElementById(`cell-${s.i}`).classList.add('good');
+        });
+    }
+
+    if (unopened === 0 && state.clicks > 0) {
+        document.getElementById('winOverlay').style.display = 'flex';
+        document.getElementById('winMessage').innerText = `已锁定全图坐标！本轮共反馈 ${state.clicks} 次。`;
+        localStorage.removeItem(STORAGE_KEY);
+    }
+    document.getElementById('statusBar').innerText = `剩余: ${unopened} | 本局点击: ${state.clicks}`;
+    saveState();
+}
+
+function confirmReset() {
+    if(confirm("确定重置吗？")){
+        state = JSON.parse(JSON.stringify(defaultData));
+        localStorage.removeItem(STORAGE_KEY);
+        document.getElementById('winOverlay').style.display = 'none';
+        init();
+    }
+}
+window.onload = init;
+</script>
+</body>
+</html>

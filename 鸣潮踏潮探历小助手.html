@@ -724,14 +724,20 @@ function runSimulation(algorithmType, iterations = 1000) {
             // 找到最高分
             if (scores.length === 0) return null;
             let maxScore = -Infinity;
-            let bestIdx = -1;
+            // 收集所有最高分的格子索引
+            let bestIndices = [];
             for (const s of scores) {
                 if (s.score > maxScore) {
                     maxScore = s.score;
-                    bestIdx = s.i;
+                    bestIndices = [s.i];
+                } else if (s.score === maxScore) {
+                    bestIndices.push(s.i);
                 }
             }
-            if (bestIdx === -1) return null;
+            if (bestIndices.length === 0) return null;
+            // 随机选择一个最高分格子
+            const randomIndex = Math.floor(Math.random() * bestIndices.length);
+            const bestIdx = bestIndices[randomIndex];
             return { r: Math.floor(bestIdx / 7), c: bestIdx % 7 };
         };
         
@@ -886,14 +892,19 @@ function runBatchSimulation() {
             
             if (scores.length > 0) {
                 let maxScore = -Infinity;
-                let bestIdx = -1;
+                let bestIndices = [];
                 for (const s of scores) {
                     if (s.score > maxScore) {
                         maxScore = s.score;
-                        bestIdx = s.i;
+                        bestIndices = [s.i];
+                    } else if (s.score === maxScore) {
+                        bestIndices.push(s.i);
                     }
                 }
-                if (bestIdx !== -1) {
+                if (bestIndices.length > 0) {
+                    // 随机选择一个最高分格子
+                    const randomIndex = Math.floor(Math.random() * bestIndices.length);
+                    const bestIdx = bestIndices[randomIndex];
                     heatmap[bestIdx]++;
                 }
             }

@@ -854,19 +854,20 @@ function applyEvent(type) {
 
 // 算法对象
 const Algorithms = {
-    // 贪心算法：使用现有逻辑
+    // 贪心算法：使用与其他算法相同的收益计算逻辑
     greedy: function(p, grid) {
         let scores = [];
         for (let i = 0; i < 49; i++) {
             const r = Math.floor(i / 7), c = i % 7;
             if (grid[i]) continue;
-            let gain = p[0] * 1;
+            let g = 0;
+            // 基础收益计算（与其他算法保持一致）
             let rg=0, cg=0, comb=0, cross=0, box=0;
             for(let j=0; j<7; j++) {
                 if(!grid[r*7+j]) { rg++; comb++; }
                 if(!grid[j*7+c]) { cg++; if(j!==r) comb++; }
             }
-            gain += p[1]*cg + p[2]*rg + p[3]*comb;
+            g = p[0]*1 + p[1]*cg + p[2]*rg + p[3]*comb;
             [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(o => {
                 let nr=r+o[0], nc=c+o[1];
                 if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) cross++;
@@ -875,8 +876,8 @@ const Algorithms = {
                 let nr=r+dr, nc=c+dc;
                 if(nr>=0&&nr<7&&nc>=0&&nc<7 && !grid[nr*7+nc]) box++;
             }
-            gain += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
-            scores.push({ i, score: gain });
+            g += p[4]*cross + p[5]*box + p[6]*(grid.filter(v=>!v).length);
+            scores.push({ i, score: g });
         }
         return scores;
     },

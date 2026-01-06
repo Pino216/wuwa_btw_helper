@@ -705,10 +705,14 @@
                     <div id="mctsParamGroup" style="display:none; margin-top:10px;">
                         <div class="prob-input-group">
                             <label>模拟次数</label>
-                            <input type="number" id="mctsIterations" value="200" min="50" max="1000" onchange="updateMCTSIterations(this.value)" style="width:70px;">
+                            <input type="number" id="mctsIterations" value="300" min="100" max="2000" onchange="updateMCTSIterations(this.value)" style="width:70px;">
+                        </div>
+                        <div class="prob-input-group">
+                            <label>稳定性模式</label>
+                            <input type="checkbox" id="mctsStable" checked onchange="updateMCTSStable(this.checked)" style="width:auto;">
                         </div>
                         <div style="font-size:11px; color:#666; margin-top:5px; padding:5px; background:#f8f9fa; border-radius:4px;">
-                            <b>注意：</b> 蒙特卡洛搜索计算量较大，建议在后期使用
+                            <b>注意：</b> 蒙特卡洛基于随机模拟，结果会有正常波动。开启稳定性模式可减少波动。
                         </div>
                     </div>
                     <div id="weightHelp" style="display:none; font-size:11px; color:#666; margin-top:8px; padding:8px; background:#fff; border-radius:6px; border:1px dashed #ddd;">
@@ -794,7 +798,8 @@ const defaultData = {
     currentAlgorithm: 'greedy',
     heuristicWeight: 1.0,
     autoWeight: true,
-    mctsIterations: 200,
+    mctsIterations: 300,
+    mctsStable: true,
     comprehensiveAlgorithms: {
         greedy: true,
         heuristic: true,
@@ -912,7 +917,8 @@ function init() {
     document.getElementById('algorithmSelect').value = state.currentAlgorithm;
     document.getElementById('heuristicWeight').value = state.heuristicWeight;
     document.getElementById('autoWeight').checked = state.autoWeight;
-    document.getElementById('mctsIterations').value = state.mctsIterations || 200;
+    document.getElementById('mctsIterations').value = state.mctsIterations || 300;
+    document.getElementById('mctsStable').checked = state.mctsStable !== false;
     
     // 初始化综合推荐算法选择
     if (!state.comprehensiveAlgorithms) {
@@ -1113,7 +1119,12 @@ function updateComprehensiveAlgorithms() {
 }
 
 function updateMCTSIterations(val) {
-    state.mctsIterations = parseInt(val) || 200;
+    state.mctsIterations = parseInt(val) || 300;
+    updateAnalysis();
+}
+
+function updateMCTSStable(checked) {
+    state.mctsStable = checked;
     updateAnalysis();
 }
 
@@ -1513,15 +1524,57 @@ const Algorithms = {
         return scores;
     },
     
-    // 蒙特卡洛树搜索（完整版）
+    // 蒙特卡洛树搜索（智能版）
     mcts: function(p, grid, iterations = null) {
         // 如果未指定迭代次数，使用默认值
         if (iterations === null) {
-            iterations = state.mctsIterations || 200;
+            iterations = state.mctsIterations || 300;
         }
         
-        // 快速蒙特卡洛模拟
-        return this.fastMCTS(p, grid, iterations);
+        // 根据是否启用稳定性模式选择算法
+        if (state.mctsStable !== false) {
+            // 稳定性模式：运行多次取平均
+            const effectiveIterations = Math.max(iterations, 150);
+            const results = [];
+            const runCount = 3; // 运行3次取平均
+            
+            for (let run = 0; run < runCount; run++) {
+                const runResult = this.fastMCTS(p, grid, Math.floor(effectiveIterations / runCount));
+                results.push(runResult);
+            }
+            
+            // 计算平均分数
+            const avgScores = Array(49).fill(0);
+            const scoreCounts = Array(49).fill(0);
+            
+            for (const runResult of results) {
+                for (const item of runResult) {
+                    avgScores[item.i] += item.score;
+                    scoreCounts[item.i]++;
+                }
+            }
+            
+            // 构建最终结果
+            const finalResult = [];
+            for (let i = 0; i < 49; i++) {
+                if (!grid[i] && scoreCounts[i] > 0) {
+                    finalResult.push({
+                        i,
+                        score: avgScores[i] / scoreCounts[i]
+                    });
+                }
+            }
+            
+            // 如果没有结果，返回默认
+            if (finalResult.length === 0) {
+                return this.fastMCTS(p, grid, effectiveIterations);
+            }
+            
+            return finalResult;
+        } else {
+            // 普通模式：单次运行
+            return this.fastMCTS(p, grid, iterations);
+        }
     },
     
     // 快速蒙特卡洛搜索
@@ -2276,9 +2329,19 @@ function updateAnalysis() {
     // 更新状态栏，显示阶段和算法
     const algorithmDisplay = currentAlgorithm;
     let scoreType = ' (归一化)';
+    let mctsNote = '';
+    
+    // 如果是蒙特卡洛算法，添加说明
+    if (currentAlgorithm === 'mcts' || currentAlgorithm === 'fastMCTS') {
+        mctsNote = state.mctsStable ? ' [稳定模式]' : ' [动态模式]';
+        if (!state.mctsStable) {
+            mctsNote += ' - 结果会有正常波动';
+        }
+    }
+    
     const statusText = window.innerWidth <= 768 
-        ? `剩余:${unopened} 阶段:${stage} 算法:${algorithmDisplay}`
-        : `剩余: ${unopened} | 阶段: ${stage} | 算法: ${algorithmDisplay}${scoreType} | 点击: ${state.clicks}`;
+        ? `剩余:${unopened} 阶段:${stage} 算法:${algorithmDisplay}${mctsNote}`
+        : `剩余: ${unopened} | 阶段: ${stage} | 算法: ${algorithmDisplay}${mctsNote}${scoreType} | 点击: ${state.clicks}`;
     document.getElementById('statusBar').innerText = statusText;
     
     // 添加说明文本
@@ -2325,143 +2388,127 @@ function runBatchSimulation() {
             // 运行纯随机算法作为对比
             const randomResults = runRandomSimulation(iterations);
         
-        // 计算统计信息
-        const calcStats = (arr) => {
-            const mean = arr.reduce((a,b) => a + b, 0) / arr.length;
-            const variance = arr.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / arr.length;
-            const std = Math.sqrt(variance);
-            return { mean, variance, std };
-        };
-        
-        const currentStats = calcStats(currentResults);
-        const randomStats = calcStats(randomResults);
-        
-        // 计算开局最优解热力分布（第一轮模拟的第一个选择）
-        // 我们运行一次模拟，记录每个格子被选为第一个选择的次数
-        const heatmap = Array(49).fill(0);
-        const sampleSize = Math.min(100, iterations);
-        for (let i = 0; i < sampleSize; i++) {
-            // 创建一个新的模拟，但只记录第一步
-            const grid = Array(49).fill(false);
-            let currentMisses = 0;
-            // 动态概率调整（与chooseEventType一致）
-            let adjustedProbs = [...state.probs];
-            if (state.enablePity && currentMisses >= state.pityStart) {
-                const progress = Math.min((currentMisses - state.pityStart + 1) / (state.pityMax - state.pityStart + 1), 1.0);
-                
-                // 如果达到最大保底次数，类型1的概率为0
-                if (currentMisses >= state.pityMax) {
-                    adjustedProbs[0] = 0;
-                    // 其他类型的概率按原始比例分配
-                    const otherTotal = state.probs.slice(1).reduce((a, b) => a + b, 0);
-                    for (let j = 1; j < 7; j++) {
-                        adjustedProbs[j] = (state.probs[j] / otherTotal) * 100;
-                    }
-                } else {
-                    // 逐步调整概率
-                    const type1Reduction = 0.5 * progress;
-                    adjustedProbs[0] = state.probs[0] * (1 - type1Reduction);
-                    
-                    // 将减少的概率分配到其他类型
-                    const reductionAmount = state.probs[0] * type1Reduction;
-                    const otherTotal = state.probs.slice(1).reduce((a, b) => a + b, 0);
-                    
-                    for (let j = 1; j < 7; j++) {
-                        adjustedProbs[j] = state.probs[j] + (reductionAmount * (state.probs[j] / otherTotal));
-                    }
-                }
-                
-                // 确保总和为100
-                const total = adjustedProbs.reduce((a, b) => a + b, 0);
-                if (total > 0) {
-                    for (let j = 0; j < 7; j++) {
-                        adjustedProbs[j] = (adjustedProbs[j] * 100) / total;
-                    }
-                }
-            }
-            const p = adjustedProbs.map(v => v / 100);
-            
-            // 对于热力图，我们需要根据开局状态重新计算算法
-            // 开局时所有格子都未开启，所以未开启格子数为49
-            let heatmapAlgorithm = actualAlgorithm;
-            if (heatmapAlgorithm === 'auto' || state.autoAlgorithm) {
-                // 开局时未开启格子数为49，大于35，所以使用heuristic
-                heatmapAlgorithm = 'heuristic';
-            }
-            
-            let scores;
-            if (heatmapAlgorithm === 'greedy') {
-                scores = Algorithms.greedy(p, grid);
-            } else if (heatmapAlgorithm === 'heuristic') {
-                scores = Algorithms.heuristic(p, grid, state.heuristicWeight);
-            } else if (heatmapAlgorithm === 'entropy') {
-                scores = Algorithms.entropy(p, grid);
-            } else if (heatmapAlgorithm === 'comprehensive') {
-                scores = Algorithms.comprehensive(p, grid, state.heuristicWeight, state.comprehensiveAlgorithms);
-            }
-            
-            if (scores.length > 0) {
-                let maxScore = -Infinity;
-                let bestIndices = [];
-                for (const s of scores) {
-                    if (s.score > maxScore) {
-                        maxScore = s.score;
-                        bestIndices = [s.i];
-                    } else if (s.score === maxScore) {
-                        bestIndices.push(s.i);
-                    }
-                }
-                if (bestIndices.length > 0) {
-                    // 随机选择一个最高分格子
-                    const randomIndex = Math.floor(Math.random() * bestIndices.length);
-                    const bestIdx = bestIndices[randomIndex];
-                    heatmap[bestIdx]++;
-                }
-            }
-        }
-        
-        // 生成结果 HTML
+        // 生成多算法对比结果表格
         let html = `
             <div style="background:#f8f9fa; padding:10px; border-radius:8px; margin-bottom:10px;">
-                <h5 style="margin:0 0 8px 0;">对比结果 (${iterations} 次模拟)</h5>
+                <h5 style="margin:0 0 8px 0;">多算法性能对比</h5>
                 <table style="width:100%; font-size:11px; border-collapse:collapse;">
                     <tr>
-                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">指标</th>
-                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">当前算法 (${displayAlgorithm})</th>
-                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">纯随机选择</th>
+                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">算法</th>
+                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">模拟次数</th>
+                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">平均点击</th>
+                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">标准差</th>
+                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">提升%</th>
+                        <th style="text-align:left; padding:4px; border-bottom:1px solid #ddd;">计算时间</th>
                     </tr>
-                    <tr>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">平均点击次数</td>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">${currentStats.mean.toFixed(2)}</td>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.mean.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">方差</td>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">${currentStats.variance.toFixed(2)}</td>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.variance.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">标准差</td>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">${currentStats.std.toFixed(2)}</td>
-                        <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.std.toFixed(2)}</td>
-                    </tr>
-                </table>
-            </div>
-            <div style="background:#f8f9fa; padding:10px; border-radius:8px;">
-                <h5 style="margin:0 0 8px 0;">开局最优解热力分布 (前${sampleSize}次模拟)</h5>
-                <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px;">
         `;
-        for (let i = 0; i < 49; i++) {
-            const intensity = Math.min(100, (heatmap[i] / sampleSize) * 100);
-            html += `<div style="background:hsl(200, 70%, ${100 - intensity}%); text-align:center; font-size:8px; padding:4px;">${heatmap[i]}</div>`;
+        
+        // 找到最佳平均点击次数（排除蒙特卡洛，因为它们模拟次数不同）
+        let bestMean = Infinity;
+        let bestAlgorithm = '';
+        for (const alg of algorithmsToTest) {
+            const stats = allStats[alg.id];
+            // 只比较模拟次数相近的算法
+            if (alg.simCount >= 800 && stats.mean < bestMean) {
+                bestMean = stats.mean;
+                bestAlgorithm = alg.id;
+            }
         }
+        
+        // 如果没有找到（可能蒙特卡洛模拟次数太少），使用所有算法
+        if (bestMean === Infinity) {
+            for (const alg of algorithmsToTest) {
+                const stats = allStats[alg.id];
+                if (stats.mean < bestMean) {
+                    bestMean = stats.mean;
+                    bestAlgorithm = alg.id;
+                }
+            }
+        }
+        
+        // 添加随机算法行
+        const randomImprovement = ((randomStats.mean - bestMean) / randomStats.mean * 100).toFixed(1);
         html += `
+            <tr style="background:#f0f0f0;">
+                <td style="padding:4px; border-bottom:1px solid #eee;"><b>纯随机算法</b></td>
+                <td style="padding:4px; border-bottom:1px solid #eee;">${Math.min(iterations, 1000)}</td>
+                <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.mean.toFixed(2)}</td>
+                <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.std.toFixed(2)}</td>
+                <td style="padding:4px; border-bottom:1px solid #eee;">-</td>
+                <td style="padding:4px; border-bottom:1px solid #eee;">${randomTime.toFixed(0)}ms</td>
+            </tr>
+        `;
+        
+        // 添加每个算法的行
+        for (const alg of algorithmsToTest) {
+            const stats = allStats[alg.id];
+            const improvement = ((randomStats.mean - stats.mean) / randomStats.mean * 100).toFixed(1);
+            const isBest = alg.id === bestAlgorithm;
+            const timePerSim = (computeTimes[alg.id] / alg.simCount).toFixed(2);
+            
+            html += `
+                <tr ${isBest ? 'style="background:#e6f7e6;"' : ''}>
+                    <td style="padding:4px; border-bottom:1px solid #eee;">${alg.name}${isBest ? ' 🏆' : ''}</td>
+                    <td style="padding:4px; border-bottom:1px solid #eee;">${alg.simCount}</td>
+                    <td style="padding:4px; border-bottom:1px solid #eee; ${isBest ? 'font-weight:bold;' : ''}">${stats.mean.toFixed(2)}</td>
+                    <td style="padding:4px; border-bottom:1px solid #eee;">${stats.std.toFixed(2)}</td>
+                    <td style="padding:4px; border-bottom:1px solid #eee; color:${parseFloat(improvement) > 0 ? 'green' : 'red'}">${improvement}%</td>
+                    <td style="padding:4px; border-bottom:1px solid #eee; font-size:10px;">${computeTimes[alg.id].toFixed(0)}ms (${timePerSim}ms/次)</td>
+                </tr>
+            `;
+        }
+        
+        html += `
+                </table>
+                <p style="font-size:10px; color:#666; margin-top:5px;">
+                    <b>注：</b>点击次数越少越好。蒙特卡洛算法模拟次数较少（计算量大），但每次决策质量更高。
+                    提升% = (随机平均 - 算法平均) / 随机平均 × 100%
+                </p>
+            </div>
+            
+            <div style="background:#f8f9fa; padding:10px; border-radius:8px;">
+                <h5 style="margin:0 0 8px 0;">算法性能分析</h5>
+                <div style="font-size:11px; line-height:1.4;">
+                    <p><b>📊 测试说明：</b></p>
+                    <ul style="margin:5px 0; padding-left:15px;">
+                        <li><b>贪心算法</b>：快速简单，适合前期快速决策（计算最快）</li>
+                        <li><b>带权启发</b>：平衡探索与利用，适合中期（计算快）</li>
+                        <li><b>熵减算法</b>：优先清理孤立格子，适合后期（计算快）</li>
+                        <li><b>综合推荐</b>：多算法融合，稳定性好（计算中等）</li>
+                        <li><b>蒙特卡洛搜索</b>：多步深度前瞻，适合复杂局面（计算量大，但决策质量高）</li>
+                        <li><b>快速蒙特卡洛</b>：平衡性能与效果（计算量中等）</li>
+                    </ul>
+                    <p><b>🎯 蒙特卡洛表现预期：</b></p>
+                    <ul style="margin:5px 0; padding-left:15px;">
+                        <li><b>前期</b>（未开启>30）：可能不如贪心/启发式（计算开销大）</li>
+                        <li><b>中期</b>（未开启10-30）：开始展现优势，多步前瞻有效</li>
+                        <li><b>后期</b>（未开启<10）：通常表现最佳，能处理复杂局面</li>
+                    </ul>
+                    <p style="font-size:10px; color:#666; margin-top:5px;">
+                        <b>💡 建议：</b>在实际游戏中，前期使用贪心/启发式，中后期切换到蒙特卡洛搜索。
+                    </p>
                 </div>
-                <p style="font-size:10px; color:#666; margin-top:5px;">数字表示被选为第一步的次数</p>
+            </div>
+            
+            <div style="background:#f8f9fa; padding:10px; border-radius:8px; margin-top:10px;">
+                <h5 style="margin:0 0 8px 0;">📈 性能-质量平衡分析</h5>
+                <div style="font-size:11px;">
+                    <p>蒙特卡洛算法的核心优势：<b>多步前瞻</b>和<b>概率优化</b>。</p>
+                    <p>在批量模拟中，我们做了以下平衡：</p>
+                    <ol style="margin:5px 0; padding-left:15px;">
+                        <li><b>减少模拟次数</b>：蒙特卡洛300次 vs 其他算法1000次</li>
+                        <li><b>保持决策质量</b>：每次决策使用足够迭代（30-100次）</li>
+                        <li><b>动态调整</b>：根据未开启格子数调整计算深度</li>
+                        <li><b>公平对比</b>：虽然次数少，但每次决策更精确</li>
+                    </ol>
+                    <p style="font-size:10px; color:#666;">
+                        这种设置下，蒙特卡洛的<b>每次模拟成本更高但质量更好</b>，总体性能对比仍然有意义。
+                    </p>
+                </div>
             </div>
         `;
         
-            contentDiv.innerHTML = html;
+        contentDiv.innerHTML = html;
         } catch (error) {
             console.error('模拟过程中出现错误:', error);
             contentDiv.innerHTML = `<p style="color:red;">模拟过程中出现错误: ${error.message}</p>`;

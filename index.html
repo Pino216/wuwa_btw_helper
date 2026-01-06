@@ -713,6 +713,7 @@
                         </div>
                         <div style="font-size:11px; color:#666; margin-top:5px; padding:5px; background:#f8f9fa; border-radius:4px;">
                             <b>注意：</b> 蒙特卡洛基于随机模拟，结果会有正常波动。开启稳定性模式可减少波动。
+                            <span style="color:#ff4757; font-weight:bold;">实际测试表明，蒙特卡洛算法在当前游戏机制下优势有限，计算成本较高。</span>
                         </div>
                     </div>
                     <div id="weightHelp" style="display:none; font-size:11px; color:#666; margin-top:8px; padding:8px; background:#fff; border-radius:6px; border:1px dashed #ddd;">
@@ -720,7 +721,8 @@
                     </div>
                 </div>
                 <div style="font-size:11px; color:#666; margin-top:8px; padding:8px; background:rgba(255,255,255,0.7); border-radius:6px;">
-                    <b>💡 算法提示：</b> 红色格子为当前算法推荐的最佳选择。蒙特卡洛搜索适合中后期复杂局面。
+                    <b>💡 算法提示：</b> 红色格子为当前算法推荐的最佳选择。
+                    <span style="color:#ff4757; font-weight:bold;">注意：</span> 蒙特卡洛算法计算成本高，且在实际测试中未表现出明显优势，建议作为学习参考。
                 </div>
             </div>
             
@@ -2531,17 +2533,17 @@ function runBatchSimulation() {
                         <li><b>带权启发</b>：平衡探索与利用，适合中期（计算快）</li>
                         <li><b>熵减算法</b>：优先清理孤立格子，适合后期（计算快）</li>
                         <li><b>综合推荐</b>：多算法融合，稳定性好（计算中等）</li>
-                        <li><b>蒙特卡洛搜索</b>：多步深度前瞻，适合复杂局面（计算量大，但决策质量高）</li>
-                        <li><b>快速蒙特卡洛</b>：平衡性能与效果（计算量中等）</li>
+                        <li><b>蒙特卡洛搜索</b>：多步深度前瞻，适合复杂局面（计算量大，但实际优势有限）</li>
+                        <li><b>快速蒙特卡洛</b>：平衡性能与效果（计算量中等，实际优势有限）</li>
                     </ul>
                     <p><b>🎯 蒙特卡洛表现预期：</b></p>
                     <ul style="margin:5px 0; padding-left:15px;">
-                        <li><b>前期</b>（未开启>30）：可能不如贪心/启发式（计算开销大）</li>
-                        <li><b>中期</b>（未开启10-30）：开始展现优势，多步前瞻有效</li>
-                        <li><b>后期</b>（未开启<10）：通常表现最佳，能处理复杂局面</li>
+                        <li><b>前期</b>（未开启>30）：不如贪心/启发式（计算开销大）</li>
+                        <li><b>中期</b>（未开启10-30）：优势不明显，多步前瞻效果有限</li>
+                        <li><b>后期</b>（未开启<10）：表现与其他算法相近，无明显优势</li>
                     </ul>
                     <p style="font-size:10px; color:#666; margin-top:5px;">
-                        <b>💡 建议：</b>在实际游戏中，前期使用贪心/启发式，中后期切换到蒙特卡洛搜索。
+                        <b>💡 建议：</b>在实际游戏中，<span style="color:#ff4757; font-weight:bold;">不建议优先使用蒙特卡洛算法</span>。它更适合作为算法学习案例。
                     </p>
                 </div>
             </div>
@@ -2549,7 +2551,8 @@ function runBatchSimulation() {
             <div style="background:#f8f9fa; padding:10px; border-radius:8px; margin-top:10px;">
                 <h5 style="margin:0 0 8px 0;">📈 性能-质量平衡分析</h5>
                 <div style="font-size:11px;">
-                    <p>蒙特卡洛算法的核心优势：<b>多步前瞻</b>和<b>概率优化</b>。</p>
+                    <p>蒙特卡洛算法的理论优势：<b>多步前瞻</b>和<b>概率优化</b>。</p>
+                    <p><span style="color:#ff4757; font-weight:bold;">然而在实际测试中，由于游戏机制限制，这些优势并未转化为实际效果。</span></p>
                     <p>在批量模拟中，我们做了以下平衡：</p>
                     <ol style="margin:5px 0; padding-left:15px;">
                         <li><b>减少模拟次数</b>：蒙特卡洛300次 vs 其他算法1000次</li>
@@ -2558,7 +2561,7 @@ function runBatchSimulation() {
                         <li><b>公平对比</b>：虽然次数少，但每次决策更精确</li>
                     </ol>
                     <p style="font-size:10px; color:#666;">
-                        这种设置下，蒙特卡洛的<b>每次模拟成本更高但质量更好</b>，总体性能对比仍然有意义。
+                        测试结果表明，蒙特卡洛的<b>计算成本远高于收益</b>，在实际游戏中优势有限。
                     </p>
                 </div>
             </div>

@@ -1800,7 +1800,7 @@ function runBatchSimulation() {
         html += `
             <tr style="background:#f0f0f0;">
                 <td style="padding:4px; border-bottom:1px solid #eee;"><b>纯随机算法</b></td>
-                <td style="padding:4px; border-bottom:1px solid #eee;">${Math.min(iterations, 1000)}</td>
+                <td style="padding:4px; border-bottom:1px solid #eee;">${randomSimCount}</td>
                 <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.mean.toFixed(2)}</td>
                 <td style="padding:4px; border-bottom:1px solid #eee;">${randomStats.std.toFixed(2)}</td>
                 <td style="padding:4px; border-bottom:1px solid #eee;">-</td>

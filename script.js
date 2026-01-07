@@ -1611,6 +1611,16 @@ function calcStats(arr) {
 
 function runBatchSimulation() {
     const iterations = parseInt(document.getElementById('simIterations').value) || 1000;
+    const includeMCTS = document.getElementById('includeMCTS').checked;
+    const includeFastMCTS = document.getElementById('includeFastMCTS').checked;
+    
+    // 如果用户选择了蒙特卡洛算法，显示警告
+    if (includeMCTS || includeFastMCTS) {
+        const warningMsg = "⚠️ 注意：蒙特卡洛算法消耗大量性能，可能导致网页无响应，仅供测试！\n\n点击'确定'继续，点击'取消'返回修改设置。";
+        if (!confirm(warningMsg)) {
+            return;
+        }
+    }
     
     // 显示加载状态
     const resultsDiv = document.getElementById('simResults');
@@ -1667,7 +1677,8 @@ function runBatchSimulation() {
             ];
             
             // 检查用户是否选择了蒙特卡洛算法进行测试
-            const includeMCTS = confirm("是否包含蒙特卡洛算法测试？\n\n注意：蒙特卡洛算法消耗大量性能，可能导致网页无响应，仅供测试！\n\n点击'确定'包含蒙特卡洛测试，点击'取消'跳过。");
+            const includeMCTS = document.getElementById('includeMCTS').checked;
+            const includeFastMCTS = document.getElementById('includeFastMCTS').checked;
             
             // 运行所有算法的模拟
             const allResults = {};
@@ -1694,8 +1705,12 @@ function runBatchSimulation() {
             }
             
             // 如果用户选择包含蒙特卡洛算法，运行它们的模拟
-            if (includeMCTS) {
+            if (includeMCTS || includeFastMCTS) {
                 for (const alg of mctsAlgorithms) {
+                    // 根据勾选框决定是否运行该算法
+                    if (alg.id === 'mcts' && !includeMCTS) continue;
+                    if (alg.id === 'fastMCTS' && !includeFastMCTS) continue;
+                    
                     contentDiv.innerHTML = `<p>正在测试 ${alg.name} (${alg.simCount}次模拟)...</p>`;
                     const startTime = performance.now();
                     const results = runSimulation(alg.id, alg.simCount);
@@ -1778,8 +1793,12 @@ function runBatchSimulation() {
         }
         
         // 如果用户选择了包含蒙特卡洛算法，添加它们的行
-        if (includeMCTS) {
+        if (includeMCTS || includeFastMCTS) {
             for (const alg of mctsAlgorithms) {
+                // 根据勾选框决定是否显示该算法
+                if (alg.id === 'mcts' && !includeMCTS) continue;
+                if (alg.id === 'fastMCTS' && !includeFastMCTS) continue;
+                
                 const stats = allStats[alg.id];
                 if (stats) {
                     const improvement = ((randomStats.mean - stats.mean) / randomStats.mean * 100).toFixed(1);

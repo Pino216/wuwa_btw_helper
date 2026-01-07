@@ -82,7 +82,7 @@ body::before {
     margin: 0; 
     font-size: 24px; 
     letter-spacing: 1px; 
-    background: linear-gradient(90deg, #ffffff, #a8d0ff, #ffffff);
+    background-image: linear-gradient(90deg, #ffffff, #a8d0ff, #ffffff);
     background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -845,21 +845,21 @@ body::before {
 @-webkit-keyframes float {
     0%, 100% {
         -webkit-transform: translateY(0) rotate(0deg);
-                transform: translateY(0) rotate(0deg);
+        transform: translateY(0) rotate(0deg);
     }
     50% {
         -webkit-transform: translateY(-5px) rotate(0.5deg);
-                transform: translateY(-5px) rotate(0.5deg);
+        transform: translateY(-5px) rotate(0.5deg);
     }
 }
 @keyframes float {
     0%, 100% {
         -webkit-transform: translateY(0) rotate(0deg);
-                transform: translateY(0) rotate(0deg);
+        transform: translateY(0) rotate(0deg);
     }
     50% {
         -webkit-transform: translateY(-5px) rotate(0.5deg);
-                transform: translateY(-5px) rotate(0.5deg);
+        transform: translateY(-5px) rotate(0.5deg);
     }
 }
 

@@ -1703,9 +1703,29 @@ function runBatchSimulation() {
             // 先运行纯随机算法作为基准
             contentDiv.innerHTML = '<p>正在运行纯随机算法基准测试...</p>';
             const randomStart = performance.now();
-            const randomResults = runRandomSimulation(Math.min(iterations, 1000));
+            // 根据是否包含蒙特卡洛决定模拟次数
+            const randomSimCount = hasMCTS ? Math.min(iterations, 1000) : iterations;
+            const randomResults = runRandomSimulation(randomSimCount);
             const randomTime = performance.now() - randomStart;
             const randomStats = calcStats(randomResults);
+            
+            // 检查用户是否选择了蒙特卡洛算法
+            const includeMCTS = document.getElementById('includeMCTS').checked;
+            const includeFastMCTS = document.getElementById('includeFastMCTS').checked;
+            const hasMCTS = includeMCTS || includeFastMCTS;
+            
+            // 更新基础算法的模拟次数：如果没有选择蒙特卡洛，使用用户指定的完整次数
+            if (!hasMCTS) {
+                // 用户没有选择蒙特卡洛，所有算法都使用完整的用户指定次数
+                for (const alg of algorithmsToTest) {
+                    alg.simCount = iterations;
+                }
+            } else {
+                // 用户选择了蒙特卡洛，基础算法仍然使用限制次数（最多1000次）
+                for (const alg of algorithmsToTest) {
+                    alg.simCount = Math.min(iterations, 1000);
+                }
+            }
             
             // 运行基础算法的模拟
             for (const alg of algorithmsToTest) {

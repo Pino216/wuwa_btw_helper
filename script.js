@@ -1666,8 +1666,8 @@ function runBatchSimulation() {
                 }
             ];
             
-            // 如果用户选择包含蒙特卡洛，将它们添加到测试列表中
-            // 这部分将在后面的confirm中处理
+            // 检查用户是否选择了蒙特卡洛算法进行测试
+            const includeMCTS = confirm("是否包含蒙特卡洛算法测试？\n\n注意：蒙特卡洛算法消耗大量性能，可能导致网页无响应，仅供测试！\n\n点击'确定'包含蒙特卡洛测试，点击'取消'跳过。");
             
             // 运行所有算法的模拟
             const allResults = {};
@@ -1681,16 +1681,8 @@ function runBatchSimulation() {
             const randomTime = performance.now() - randomStart;
             const randomStats = calcStats(randomResults);
             
-            // 检查用户是否选择了蒙特卡洛算法进行测试
-            const includeMCTS = confirm("是否包含蒙特卡洛算法测试？\n\n注意：蒙特卡洛算法消耗大量性能，可能导致网页无响应，仅供测试！\n\n点击'确定'包含蒙特卡洛测试，点击'取消'跳过。");
-            
-            // 运行每个算法的模拟
+            // 运行基础算法的模拟
             for (const alg of algorithmsToTest) {
-                // 如果用户选择不包含蒙特卡洛，跳过相关算法
-                if (!includeMCTS && (alg.id === 'mcts' || alg.id === 'fastMCTS')) {
-                    continue;
-                }
-                
                 contentDiv.innerHTML = `<p>正在测试 ${alg.name} (${alg.simCount}次模拟)...</p>`;
                 const startTime = performance.now();
                 const results = runSimulation(alg.id, alg.simCount);
@@ -1699,6 +1691,20 @@ function runBatchSimulation() {
                 allResults[alg.id] = results;
                 allStats[alg.id] = calcStats(results);
                 computeTimes[alg.id] = endTime - startTime;
+            }
+            
+            // 如果用户选择包含蒙特卡洛算法，运行它们的模拟
+            if (includeMCTS) {
+                for (const alg of mctsAlgorithms) {
+                    contentDiv.innerHTML = `<p>正在测试 ${alg.name} (${alg.simCount}次模拟)...</p>`;
+                    const startTime = performance.now();
+                    const results = runSimulation(alg.id, alg.simCount);
+                    const endTime = performance.now();
+                    
+                    allResults[alg.id] = results;
+                    allStats[alg.id] = calcStats(results);
+                    computeTimes[alg.id] = endTime - startTime;
+                }
             }
         
         // 生成多算法对比结果表格

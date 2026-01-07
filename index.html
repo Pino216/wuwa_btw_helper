@@ -21,122 +21,150 @@
     <div class="config-panel" id="configPanel">
         <button class="toggle-btn" onclick="toggleConfig()" id="toggleBtn">◀</button>
         <div class="config-content">
-            <!-- 算法选择部分移到最前面，并增加视觉强调 -->
-            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 15px; margin-bottom: 20px; border-left: 4px solid var(--accent); box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
-                <h3 style="margin-top:0; font-size:18px; color: var(--accent); display:flex; align-items:center;">
-                    <span style="margin-right:8px;">🤖</span> 核心算法选择
-                </h3>
-                <div style="margin-bottom:10px;">
-                    <div class="prob-input-group">
-                        <label style="font-weight:bold;">当前算法</label>
-                        <select id="algorithmSelect" onchange="updateAlgorithm(this.value)" style="width:180px; padding:6px; border:2px solid var(--accent); border-radius:6px; font-weight:bold; background:white;">
-                            <option value="greedy">贪心算法（利益至上）</option>
-                            <option value="heuristic">带权启发（战略布局）</option>
-                            <option value="entropy">熵减算法（风险对冲）</option>
-                            <option value="comprehensive">综合推荐（算法融合）</option>
-                            <option value="mcts">蒙特卡洛搜索（深度前瞻）</option>
-                            <option value="fastMCTS">快速蒙特卡洛（平衡型）</option>
-                        </select>
-                    </div>
-                    <div class="prob-input-group" id="weightParamGroup" style="display:none;">
-                        <label>探索权重 (w)</label>
-                        <input type="number" id="heuristicWeight" value="1.0" step="0.1" min="0.1" max="5.0" onchange="updateHeuristicWeight(this.value)" style="width:60px; padding:4px; border:1px solid #ddd; border-radius:4px;">
-                    </div>
-                    <div class="prob-input-group" id="autoWeightGroup" style="display:none;">
-                        <label>权重自动调整</label>
-                        <input type="checkbox" id="autoWeight" onchange="toggleAutoWeight(this.checked)" style="width:auto;">
-                    </div>
-                    <div id="comprehensiveParamGroup" style="display:none; margin-top:10px;">
-                        <div style="font-size:12px; margin-bottom:5px; color:#666; font-weight:bold;">参与综合的算法：</div>
-                        <div style="display:flex; flex-wrap:wrap; gap:8px;">
-                            <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
-                                <input type="checkbox" id="compGreedy" checked onchange="updateComprehensiveAlgorithms()"> 贪心
-                            </label>
-                            <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
-                                <input type="checkbox" id="compHeuristic" checked onchange="updateComprehensiveAlgorithms()"> 带权启发
-                            </label>
-                            <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
-                                <input type="checkbox" id="compEntropy" checked onchange="updateComprehensiveAlgorithms()"> 熵减
-                            </label>
-                            <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
-                                <input type="checkbox" id="compMCTS" onchange="updateComprehensiveAlgorithms()"> 蒙特卡洛
-                            </label>
-                        </div>
-                    </div>
-                    <div id="mctsParamGroup" style="display:none; margin-top:10px;">
-                        <div class="prob-input-group">
-                            <label>模拟次数</label>
-                            <input type="number" id="mctsIterations" value="300" min="100" max="2000" onchange="updateMCTSIterations(this.value)" style="width:70px;">
-                        </div>
-                        <div class="prob-input-group">
-                            <label>稳定性模式</label>
-                            <input type="checkbox" id="mctsStable" checked onchange="updateMCTSStable(this.checked)" style="width:auto;">
-                        </div>
-                        <div style="font-size:11px; color:#666; margin-top:5px; padding:5px; background:#f8f9fa; border-radius:4px;">
-                            <b>注意：</b> 蒙特卡洛基于随机模拟，结果会有正常波动。开启稳定性模式可减少波动。
-                            <span style="color:#ff4757; font-weight:bold;">实际测试表明，蒙特卡洛算法在当前游戏机制下优势有限，计算成本较高。</span>
-                        </div>
-                    </div>
-                    <div id="weightHelp" style="display:none; font-size:11px; color:#666; margin-top:8px; padding:8px; background:#fff; border-radius:6px; border:1px dashed #ddd;">
-                        <b>探索权重说明：</b> w值越大，算法越倾向于选择周围未开格子多的位置（探索），w值越小则越关注当前格子直接收益（利用）。推荐值：1.0-2.0。
-                    </div>
+            <!-- 算法选择部分（始终展开） -->
+            <div class="config-section algorithm-section">
+                <div class="section-header">
+                    <span>🤖 核心算法选择</span>
+                    <span class="toggle-icon">▼</span>
                 </div>
-                <div style="font-size:11px; color:#666; margin-top:8px; padding:8px; background:rgba(255,255,255,0.7); border-radius:6px;">
-                    <b>💡 算法提示：</b> 红色格子为当前算法推荐的最佳选择。
-                    <span style="color:#ff4757; font-weight:bold;">注意：</span> 蒙特卡洛算法计算成本高，且在实际测试中未表现出明显优势，建议作为学习参考。
+                <div class="section-content">
+                    <div style="margin-bottom:10px;">
+                        <div class="prob-input-group">
+                            <label style="font-weight:bold;">当前算法</label>
+                            <select id="algorithmSelect" onchange="updateAlgorithm(this.value)" style="width:180px; padding:6px; border:2px solid var(--accent); border-radius:6px; font-weight:bold; background:white;">
+                                <option value="greedy">贪心算法（利益至上）</option>
+                                <option value="heuristic">带权启发（战略布局）</option>
+                                <option value="entropy">熵减算法（风险对冲）</option>
+                                <option value="comprehensive">综合推荐（算法融合）</option>
+                                <option value="mcts">蒙特卡洛搜索（深度前瞻）</option>
+                                <option value="fastMCTS">快速蒙特卡洛（平衡型）</option>
+                            </select>
+                        </div>
+                        <div class="prob-input-group" id="weightParamGroup" style="display:none;">
+                            <label>探索权重 (w)</label>
+                            <input type="number" id="heuristicWeight" value="1.0" step="0.1" min="0.1" max="5.0" onchange="updateHeuristicWeight(this.value)" style="width:60px; padding:4px; border:1px solid #ddd; border-radius:4px;">
+                        </div>
+                        <div class="prob-input-group" id="autoWeightGroup" style="display:none;">
+                            <label>权重自动调整</label>
+                            <input type="checkbox" id="autoWeight" onchange="toggleAutoWeight(this.checked)" style="width:auto;">
+                        </div>
+                        <div id="comprehensiveParamGroup" style="display:none; margin-top:10px;">
+                            <div style="font-size:12px; margin-bottom:5px; color:#666; font-weight:bold;">参与综合的算法：</div>
+                            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                                <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
+                                    <input type="checkbox" id="compGreedy" checked onchange="updateComprehensiveAlgorithms()"> 贪心
+                                </label>
+                                <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
+                                    <input type="checkbox" id="compHeuristic" checked onchange="updateComprehensiveAlgorithms()"> 带权启发
+                                </label>
+                                <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
+                                    <input type="checkbox" id="compEntropy" checked onchange="updateComprehensiveAlgorithms()"> 熵减
+                                </label>
+                                <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
+                                    <input type="checkbox" id="compMCTS" onchange="updateComprehensiveAlgorithms()"> 蒙特卡洛
+                                </label>
+                            </div>
+                        </div>
+                        <div id="mctsParamGroup" style="display:none; margin-top:10px;">
+                            <div class="prob-input-group">
+                                <label>模拟次数</label>
+                                <input type="number" id="mctsIterations" value="300" min="100" max="2000" onchange="updateMCTSIterations(this.value)" style="width:70px;">
+                            </div>
+                            <div class="prob-input-group">
+                                <label>稳定性模式</label>
+                                <input type="checkbox" id="mctsStable" checked onchange="updateMCTSStable(this.checked)" style="width:auto;">
+                            </div>
+                            <div style="font-size:11px; color:#666; margin-top:5px; padding:5px; background:#f8f9fa; border-radius:4px;">
+                                <b>注意：</b> 蒙特卡洛基于随机模拟，结果会有正常波动。开启稳定性模式可减少波动。
+                                <span style="color:#ff4757; font-weight:bold;">实际测试表明，蒙特卡洛算法在当前游戏机制下优势有限，计算成本较高。</span>
+                            </div>
+                        </div>
+                        <div id="weightHelp" style="display:none; font-size:11px; color:#666; margin-top:8px; padding:8px; background:#fff; border-radius:6px; border:1px dashed #ddd;">
+                            <b>探索权重说明：</b> w值越大，算法越倾向于选择周围未开格子多的位置（探索），w值越小则越关注当前格子直接收益（利用）。推荐值：1.0-2.0。
+                        </div>
+                    </div>
+                    <div style="font-size:11px; color:#666; margin-top:8px; padding:8px; background:rgba(255,255,255,0.7); border-radius:6px;">
+                        <b>💡 算法提示：</b> 红色格子为当前算法推荐的最佳选择。
+                        <span style="color:#ff4757; font-weight:bold;">注意：</span> 蒙特卡洛算法计算成本高，且在实际测试中未表现出明显优势，建议作为学习参考。
+                    </div>
                 </div>
             </div>
             
-            <h3 style="margin-top:0; font-size:16px;">⚙️ 概率权重</h3>
-            <div id="probInputs"></div>
-            <div id="probWarning" style="font-size: 12px; margin: 8px 0;"></div>
+            <!-- 概率权重模块（默认折叠） -->
+            <div class="config-section">
+                <div class="section-header">
+                    <span>⚙️ 概率权重</span>
+                    <span class="toggle-icon">▶</span>
+                </div>
+                <div class="section-content">
+                    <div id="probInputs"></div>
+                    <div id="probWarning" style="font-size: 12px; margin: 8px 0;"></div>
+                </div>
+            </div>
             
-            <h3 style="margin-top:25px; font-size:16px;">🎯 保底系统</h3>
-            <div style="margin-bottom:15px;">
-                <div class="prob-input-group">
-                    <label>启用保底</label>
-                    <input type="checkbox" id="enablePity" onchange="updatePityEnable(this.checked)" style="width:auto;">
+            <!-- 保底系统模块（默认折叠） -->
+            <div class="config-section">
+                <div class="section-header">
+                    <span>🎯 保底系统</span>
+                    <span class="toggle-icon">▶</span>
                 </div>
-                <div class="prob-input-group">
-                    <label>保底起始 (X)</label>
-                    <input type="number" id="pityStart" onchange="updatePityStart(this.value)" min="1" max="20">
-                </div>
-                <div class="prob-input-group">
-                    <label>保底上限 (Y)</label>
-                    <input type="number" id="pityMax" onchange="updatePityMax(this.value)" min="2" max="50">
-                </div>
-                <div style="font-size:11px; color:#888; margin-top:8px; padding:6px; background:#f8f9fa; border-radius:6px;">
-                    当前未触发计数: <span id="currentMissesDisplay"></span>
+                <div class="section-content">
+                    <div style="margin-bottom:15px;">
+                        <div class="prob-input-group">
+                            <label>启用保底</label>
+                            <input type="checkbox" id="enablePity" onchange="updatePityEnable(this.checked)" style="width:auto;">
+                        </div>
+                        <div class="prob-input-group">
+                            <label>保底起始 (X)</label>
+                            <input type="number" id="pityStart" onchange="updatePityStart(this.value)" min="1" max="20">
+                        </div>
+                        <div class="prob-input-group">
+                            <label>保底上限 (Y)</label>
+                            <input type="number" id="pityMax" onchange="updatePityMax(this.value)" min="2" max="50">
+                        </div>
+                        <div style="font-size:11px; color:#888; margin-top:8px; padding:6px; background:#f8f9fa; border-radius:6px;">
+                            当前未触发计数: <span id="currentMissesDisplay"></span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <h3 style="margin-top:20px; font-size:16px;">💪 批量模拟</h3>
-            <div style="margin-bottom:10px;">
-                <div class="prob-input-group">
-                    <label>模拟次数</label>
-                    <input type="number" id="simIterations" value="1000" min="10" max="10000" style="width:70px;">
+            <!-- 批量模拟模块（默认折叠） -->
+            <div class="config-section">
+                <div class="section-header">
+                    <span>💪 批量模拟</span>
+                    <span class="toggle-icon">▶</span>
                 </div>
-                <div style="margin:10px 0; padding:10px; background:#f8f9fa; border-radius:6px;">
-                    <div style="font-size:12px; margin-bottom:5px; color:#666; font-weight:bold;">包含算法（蒙特卡洛消耗大量性能，可能导致网页无响应，仅供测试！）</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                        <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
-                            <input type="checkbox" id="includeMCTS" checked> 蒙特卡洛搜索
-                        </label>
-                        <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
-                            <input type="checkbox" id="includeFastMCTS" checked> 快速蒙特卡洛
-                        </label>
+                <div class="section-content">
+                    <div style="margin-bottom:10px;">
+                        <div class="prob-input-group">
+                            <label>模拟次数</label>
+                            <input type="number" id="simIterations" value="1000" min="10" max="10000" style="width:70px;">
+                        </div>
+                        <div style="margin:10px 0; padding:10px; background:#f8f9fa; border-radius:6px;">
+                            <div style="font-size:12px; margin-bottom:5px; color:#666; font-weight:bold;">包含算法（蒙特卡洛消耗大量性能，可能导致网页无响应，仅供测试！）</div>
+                            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                                <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
+                                    <input type="checkbox" id="includeMCTS" checked> 蒙特卡洛搜索
+                                </label>
+                                <label style="font-size:11px; display:flex; align-items:center; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ddd;">
+                                    <input type="checkbox" id="includeFastMCTS" checked> 快速蒙特卡洛
+                                </label>
+                            </div>
+                            <div style="font-size:10px; color:#ff4757; margin-top:5px;">
+                                ⚠️ 注意：蒙特卡洛算法消耗大量性能，可能导致网页无响应，仅供测试！
+                            </div>
+                        </div>
+                        <button class="btn-reset" onclick="runBatchSimulation()" style="margin-top:10px; background:var(--accent); padding: 12px; font-size: 14px;">开始批量模拟</button>
+                        <div id="simResults" style="margin-top:15px; font-size:12px; display:none;">
+                            <h4 style="margin:0 0 8px 0; font-size:13px;">模拟结果</h4>
+                            <div id="simResultsContent" style="overflow-x: auto;"></div>
+                        </div>
                     </div>
-                    <div style="font-size:10px; color:#ff4757; margin-top:5px;">
-                        ⚠️ 注意：蒙特卡洛算法消耗大量性能，可能导致网页无响应，仅供测试！
-                    </div>
-                </div>
-                <button class="btn-reset" onclick="runBatchSimulation()" style="margin-top:10px; background:var(--accent); padding: 12px; font-size: 14px;">开始批量模拟</button>
-                <div id="simResults" style="margin-top:15px; font-size:12px; display:none;">
-                    <h4 style="margin:0 0 8px 0; font-size:13px;">模拟结果</h4>
-                    <div id="simResultsContent" style="overflow-x: auto;"></div>
                 </div>
             </div>
             
+            <!-- 重置按钮 -->
             <button class="btn-reset" onclick="confirmReset()">🔄 重置进度</button>
         </div>
     </div>

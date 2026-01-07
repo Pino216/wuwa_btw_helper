@@ -212,6 +212,9 @@ function init() {
         btn.innerHTML = '◀';
     }
     
+    // 初始化可折叠模块
+    initSectionToggles();
+    
     updateAnalysis();
     
     // 监听窗口大小变化，调整折叠状态
@@ -235,6 +238,21 @@ function init() {
                 btn.innerHTML = '◀';
             }
         }
+    });
+}
+
+// 初始化可折叠模块
+function initSectionToggles() {
+    document.querySelectorAll('.section-header').forEach(header => {
+        // 算法选择模块始终展开，不添加点击事件
+        if (header.closest('.algorithm-section')) return;
+        
+        header.addEventListener('click', function() {
+            const content = this.nextElementSibling;
+            content.classList.toggle('expanded');
+            const icon = this.querySelector('.toggle-icon');
+            icon.textContent = content.classList.contains('expanded') ? '▼' : '▶';
+        });
     });
 }
 

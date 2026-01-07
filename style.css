@@ -99,7 +99,7 @@ body {
 /* --- 配置面板 (响应式) --- */
 .config-panel {
     background: var(--card-bg);
-    padding: 25px;
+    padding: 20px;
     border-radius: 16px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.05);
     width: 320px;
@@ -109,13 +109,82 @@ body {
     overflow: visible; /* 允许按钮显示在外部 */
     z-index: 100;
     flex-shrink: 0;
-    /* 移除固定最小高度，让内容决定高度 */
     max-height: 90vh; /* 限制最大高度，防止过长 */
     overflow-y: auto; /* 如果内容过多，可以滚动 */
 }
 
 .config-content { 
     transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* 可折叠模块样式 */
+.config-section {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.section-header {
+    padding: 12px 15px;
+    background: #f8f9fa;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #444;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.section-header:hover {
+    background: #f0f2f5;
+}
+
+.section-content {
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.section-content.expanded {
+    padding: 15px;
+    max-height: 2000px;
+}
+
+.toggle-icon {
+    font-size: 12px;
+    color: #888;
+    transition: transform 0.2s ease;
+}
+
+.section-header:hover .toggle-icon {
+    color: #555;
+}
+
+/* 算法选择模块始终展开 */
+.algorithm-section .section-content {
+    padding: 15px;
+    max-height: none;
+    display: block !important;
+}
+
+/* 配置面板标题样式优化 */
+.config-panel h3 {
+    font-size: 14px !important;
+    margin: 15px 0 8px 0 !important;
+    color: #555;
+    font-weight: 600;
+}
+
+/* 紧凑布局 */
+.prob-input-group {
+    margin-bottom: 6px !important;
+    font-size: 12px !important;
 }
 
 /* 电脑端折叠状态 - 基础样式，会被媒体查询覆盖 */

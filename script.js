@@ -1445,21 +1445,50 @@ function updateAnalysis() {
         });
     });
     
-    // 计算综合分数：三个算法分数的平均值
+    // 计算综合分数：仅在使用综合推荐算法时，使用用户勾选的算法计算平均值
     const combinedScores = [];
-    for (let i = 0; i < 49; i++) {
-        if (state.grid[i]) continue;
-        let sum = 0;
-        let count = 0;
-        Object.keys(normalizedScores).forEach(alg => {
-            const scoreObj = normalizedScores[alg].find(s => s.i === i);
-            if (scoreObj) {
-                sum += scoreObj.score;
-                count++;
+    if (currentAlgorithm === 'comprehensive') {
+        for (let i = 0; i < 49; i++) {
+            if (state.grid[i]) continue;
+            let sum = 0;
+            let count = 0;
+            
+            // 只使用用户勾选的算法
+            if (state.comprehensiveAlgorithms.greedy) {
+                const scoreObj = normalizedScores.greedy?.find(s => s.i === i);
+                if (scoreObj) {
+                    sum += scoreObj.score;
+                    count++;
+                }
             }
-        });
-        const avgScore = count > 0 ? sum / count : 0;
-        combinedScores.push({ i, score: avgScore });
+            if (state.comprehensiveAlgorithms.heuristic) {
+                const scoreObj = normalizedScores.heuristic?.find(s => s.i === i);
+                if (scoreObj) {
+                    sum += scoreObj.score;
+                    count++;
+                }
+            }
+            if (state.comprehensiveAlgorithms.entropy) {
+                const scoreObj = normalizedScores.entropy?.find(s => s.i === i);
+                if (scoreObj) {
+                    sum += scoreObj.score;
+                    count++;
+                }
+            }
+            if (state.comprehensiveAlgorithms.mcts) {
+                const scoreObj = normalizedScores.mcts?.find(s => s.i === i);
+                if (scoreObj) {
+                    sum += scoreObj.score;
+                    count++;
+                }
+            }
+            
+            const avgScore = count > 0 ? sum / count : 0;
+            combinedScores.push({ i, score: avgScore });
+        }
+    } else {
+        // 如果不是综合推荐算法，combinedScores为空
+        // 这不会影响其他算法的显示
     }
     
     // 根据当前选择的算法决定显示哪个分数
@@ -1593,7 +1622,7 @@ function runBatchSimulation() {
     setTimeout(() => {
         try {
             // 定义要测试的算法列表和对应的模拟次数
-            // 蒙特卡洛算法需要更多计算，所以减少模拟次数但保持质量
+            // 基础算法列表（不包含蒙特卡洛）
             const algorithmsToTest = [
                 { 
                     id: 'greedy', 
@@ -1618,20 +1647,27 @@ function runBatchSimulation() {
                     name: '综合推荐',
                     simCount: Math.min(iterations, 1000),
                     description: '多算法融合'
-                },
+                }
+            ];
+            
+            // 蒙特卡洛算法作为可选测试项
+            const mctsAlgorithms = [
                 { 
                     id: 'mcts', 
                     name: '蒙特卡洛搜索',
-                    simCount: Math.min(iterations, 300), // 蒙特卡洛计算量大，减少次数
+                    simCount: Math.min(iterations, 100), // 大幅减少次数以避免性能问题
                     description: '深度前瞻（计算量大）'
                 },
                 { 
                     id: 'fastMCTS', 
                     name: '快速蒙特卡洛',
-                    simCount: Math.min(iterations, 500), // 快速版可以多跑一些
+                    simCount: Math.min(iterations, 200), // 快速版可以多跑一些
                     description: '平衡性能与效果'
                 }
             ];
+            
+            // 如果用户选择包含蒙特卡洛，将它们添加到测试列表中
+            // 这部分将在后面的confirm中处理
             
             // 运行所有算法的模拟
             const allResults = {};
@@ -1645,8 +1681,16 @@ function runBatchSimulation() {
             const randomTime = performance.now() - randomStart;
             const randomStats = calcStats(randomResults);
             
+            // 检查用户是否选择了蒙特卡洛算法进行测试
+            const includeMCTS = confirm("是否包含蒙特卡洛算法测试？\n\n注意：蒙特卡洛算法消耗大量性能，可能导致网页无响应，仅供测试！\n\n点击'确定'包含蒙特卡洛测试，点击'取消'跳过。");
+            
             // 运行每个算法的模拟
             for (const alg of algorithmsToTest) {
+                // 如果用户选择不包含蒙特卡洛，跳过相关算法
+                if (!includeMCTS && (alg.id === 'mcts' || alg.id === 'fastMCTS')) {
+                    continue;
+                }
+                
                 contentDiv.innerHTML = `<p>正在测试 ${alg.name} (${alg.simCount}次模拟)...</p>`;
                 const startTime = performance.now();
                 const results = runSimulation(alg.id, alg.simCount);
@@ -1708,7 +1752,7 @@ function runBatchSimulation() {
             </tr>
         `;
         
-        // 添加每个算法的行
+        // 添加基础算法的行
         for (const alg of algorithmsToTest) {
             const stats = allStats[alg.id];
             const improvement = ((randomStats.mean - stats.mean) / randomStats.mean * 100).toFixed(1);
@@ -1725,6 +1769,29 @@ function runBatchSimulation() {
                     <td style="padding:4px; border-bottom:1px solid #eee; font-size:10px;">${computeTimes[alg.id].toFixed(0)}ms (${timePerSim}ms/次)</td>
                 </tr>
             `;
+        }
+        
+        // 如果用户选择了包含蒙特卡洛算法，添加它们的行
+        if (includeMCTS) {
+            for (const alg of mctsAlgorithms) {
+                const stats = allStats[alg.id];
+                if (stats) {
+                    const improvement = ((randomStats.mean - stats.mean) / randomStats.mean * 100).toFixed(1);
+                    const isBest = alg.id === bestAlgorithm;
+                    const timePerSim = (computeTimes[alg.id] / alg.simCount).toFixed(2);
+                    
+                    html += `
+                        <tr ${isBest ? 'style="background:#e6f7e6;"' : ''}>
+                            <td style="padding:4px; border-bottom:1px solid #eee; color:#ff4757;">${alg.name} ⚠️${isBest ? ' 🏆' : ''}</td>
+                            <td style="padding:4px; border-bottom:1px solid #eee;">${alg.simCount}</td>
+                            <td style="padding:4px; border-bottom:1px solid #eee; ${isBest ? 'font-weight:bold;' : ''}">${stats.mean.toFixed(2)}</td>
+                            <td style="padding:4px; border-bottom:1px solid #eee;">${stats.std.toFixed(2)}</td>
+                            <td style="padding:4px; border-bottom:1px solid #eee; color:${parseFloat(improvement) > 0 ? 'green' : 'red'}">${improvement}%</td>
+                            <td style="padding:4px; border-bottom:1px solid #eee; font-size:10px; color:#ff4757;">${computeTimes[alg.id].toFixed(0)}ms (${timePerSim}ms/次)</td>
+                        </tr>
+                    `;
+                }
+            }
         }
         
         html += `

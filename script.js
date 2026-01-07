@@ -1694,6 +1694,7 @@ function runBatchSimulation() {
             // 检查用户是否选择了蒙特卡洛算法进行测试
             const includeMCTS = document.getElementById('includeMCTS').checked;
             const includeFastMCTS = document.getElementById('includeFastMCTS').checked;
+            const hasMCTS = includeMCTS || includeFastMCTS;
             
             // 运行所有算法的模拟
             const allResults = {};
@@ -1708,11 +1709,6 @@ function runBatchSimulation() {
             const randomResults = runRandomSimulation(randomSimCount);
             const randomTime = performance.now() - randomStart;
             const randomStats = calcStats(randomResults);
-            
-            // 检查用户是否选择了蒙特卡洛算法
-            const includeMCTS = document.getElementById('includeMCTS').checked;
-            const includeFastMCTS = document.getElementById('includeFastMCTS').checked;
-            const hasMCTS = includeMCTS || includeFastMCTS;
             
             // 更新基础算法的模拟次数：如果没有选择蒙特卡洛，使用用户指定的完整次数
             if (!hasMCTS) {
@@ -1906,10 +1902,10 @@ function runBatchSimulation() {
         `;
         
         contentDiv.innerHTML = html;
-        } catch (error) {
-            console.error('模拟过程中出现错误:', error);
-            contentDiv.innerHTML = `<p style="color:red;">模拟过程中出现错误: ${error.message}</p>`;
-        }
+    } catch (error) {
+        console.error('模拟过程中出现错误:', error);
+        contentDiv.innerHTML = `<p style="color:red;">模拟过程中出现错误: ${error.message}</p>`;
+    }
     }, 10);
 }
 

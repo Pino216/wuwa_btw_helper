@@ -311,6 +311,7 @@ body::before {
 }
 .toggle-btn:hover {
     background: #0a7be0;
+    -webkit-transform: translateY(-50%) scale(1.1);
     transform: translateY(-50%) scale(1.1);
     box-shadow: 0 6px 16px rgba(30, 144, 255, 0.4);
 }
@@ -419,6 +420,7 @@ body::before {
     content: "Designed by @Dark噫术家";
     position: absolute;
     top: 50%; left: 50%;
+    -webkit-transform: translate(-50%, -50%) rotate(-30deg);
     transform: translate(-50%, -50%) rotate(-30deg);
     font-size: 24px;
     color: rgba(0, 0, 0, 0.04);
@@ -428,6 +430,7 @@ body::before {
 }
 
 .cell:hover:not(.opened) { 
+    -webkit-transform: translateY(-3px);
     transform: translateY(-3px); 
     box-shadow: 0 5px 15px rgba(30, 144, 255, 0.3); 
     border-color: var(--accent); 
@@ -688,6 +691,7 @@ body::before {
     }
     .toggle-btn:hover {
         background: #0a7be0;
+        -webkit-transform: scale(1.02);
         transform: scale(1.02);
     }
     .grid-area {
@@ -854,11 +858,9 @@ body::before {
 }
 @keyframes float {
     0%, 100% {
-        -webkit-transform: translateY(0) rotate(0deg);
         transform: translateY(0) rotate(0deg);
     }
     50% {
-        -webkit-transform: translateY(-5px) rotate(0.5deg);
         transform: translateY(-5px) rotate(0.5deg);
     }
 }
@@ -902,24 +904,22 @@ body::before {
 @-webkit-keyframes popIn { 
     from { 
         -webkit-transform: scale(0.8); 
-                transform: scale(0.8); 
+        transform: scale(0.8); 
         opacity: 0; 
     } 
     to { 
         -webkit-transform: scale(1); 
-                transform: scale(1); 
+        transform: scale(1); 
         opacity: 1; 
     } 
 }
 @keyframes popIn { 
     from { 
-        -webkit-transform: scale(0.8); 
-                transform: scale(0.8); 
+        transform: scale(0.8); 
         opacity: 0; 
     } 
     to { 
-        -webkit-transform: scale(1); 
-                transform: scale(1); 
+        transform: scale(1); 
         opacity: 1; 
     } 
 }

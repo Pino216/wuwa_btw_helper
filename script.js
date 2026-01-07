@@ -1544,27 +1544,40 @@ function updateAnalysis() {
         }
     }
     
-    // 额外标记被多个算法推荐的格子
-    // 计算每个格子被推荐的程度（在归一化分数中排名前3）
-    const recommendationCount = Array(49).fill(0);
-    Object.keys(normalizedScores).forEach(alg => {
-        const algScores = normalizedScores[alg];
-        // 按分数排序
-        const sorted = [...algScores].sort((a, b) => b.score - a.score);
-        // 取前3名
-        const top3 = sorted.slice(0, 3);
-        top3.forEach(s => {
-            recommendationCount[s.i]++;
+    // 额外标记被多个算法推荐的格子（绿框）
+    // 只有在使用综合推荐算法时才显示绿框，并且只使用用户勾选的算法
+    if (currentAlgorithm === 'comprehensive') {
+        // 计算每个格子被推荐的程度（在归一化分数中排名前3）
+        const recommendationCount = Array(49).fill(0);
+        
+        // 只考虑用户勾选的算法
+        const selectedAlgorithms = [];
+        if (state.comprehensiveAlgorithms.greedy) selectedAlgorithms.push('greedy');
+        if (state.comprehensiveAlgorithms.heuristic) selectedAlgorithms.push('heuristic');
+        if (state.comprehensiveAlgorithms.entropy) selectedAlgorithms.push('entropy');
+        if (state.comprehensiveAlgorithms.mcts) selectedAlgorithms.push('mcts');
+        
+        selectedAlgorithms.forEach(alg => {
+            const algScores = normalizedScores[alg];
+            if (!algScores) return;
+            // 按分数排序
+            const sorted = [...algScores].sort((a, b) => b.score - a.score);
+            // 取前3名
+            const top3 = sorted.slice(0, 3);
+            top3.forEach(s => {
+                recommendationCount[s.i]++;
+            });
         });
-    });
-    
-    // 标记被至少2个算法推荐的格子
-    for (let i = 0; i < 49; i++) {
-        if (state.grid[i]) continue;
-        if (recommendationCount[i] >= 2) {
-            document.getElementById(`cell-${i}`).classList.add('combined-best');
+        
+        // 标记被至少2个算法推荐的格子
+        for (let i = 0; i < 49; i++) {
+            if (state.grid[i]) continue;
+            if (recommendationCount[i] >= 2) {
+                document.getElementById(`cell-${i}`).classList.add('combined-best');
+            }
         }
     }
+    // 其他算法下不显示绿框
 
     if (unopened === 0 && state.clicks > 0) {
         document.getElementById('winOverlay').style.display = 'flex';
@@ -1591,9 +1604,11 @@ function updateAnalysis() {
     document.getElementById('statusBar').innerText = statusText;
     
     // 添加说明文本
-    const hasCombinedBest = document.querySelector('.cell.combined-best');
-    if (hasCombinedBest) {
-        document.getElementById('statusBar').innerText += ' | 绿框:多算法推荐';
+    if (currentAlgorithm === 'comprehensive') {
+        const hasCombinedBest = document.querySelector('.cell.combined-best');
+        if (hasCombinedBest) {
+            document.getElementById('statusBar').innerText += ' | 绿框:多算法推荐';
+        }
     }
     saveState();
 }

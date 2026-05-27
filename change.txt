@@ -3,20 +3,22 @@ style.css
 
 <<<<<<< SEARCH
 .cell {
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, rgba(248, 249, 250, 0.95), rgba(240, 242, 245, 0.9));
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
+    border: 1px solid rgba(255, 255, 255, 0.15);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: 10px;
     position: relative;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 =======
 .cell {
@@ -45,10 +47,11 @@ style.css
 
 <<<<<<< SEARCH
 .cell:hover:not(.opened) {
-    transform: translateY(-3px);
-    box-shadow: 0 5px 15px rgba(30, 144, 255, 0.3);
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(80, 160, 255, 0.4),
+                inset 0 0 0 1px rgba(255,255,255,0.3);
     border-color: var(--accent);
-    background: rgba(255, 255, 255, 0.95);
+    background: linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.12));
 }
 =======
 .cell:hover:not(.opened) {

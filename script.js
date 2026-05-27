@@ -407,7 +407,9 @@ function applyEvent(type) {
         probs: [...state.probs],
         enablePity: state.enablePity,
         pityStart: state.pityStart,
-        pityMax: state.pityMax
+        pityMax: state.pityMax,
+        grid: [...state.grid],
+        clicks: state.clicks
     };
     historyLog.push(logEntry);
     
@@ -1973,6 +1975,21 @@ function exportHistory() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+function undoStep() {
+    const entry = historyLog.pop();
+    if (!entry) {
+        alert("没有可撤销的步骤");
+        return;
+    }
+    // 恢复操作前的状态
+    state.grid = entry.grid;
+    state.clicks = entry.clicks;
+    state.currentMisses = entry.currentMissesBefore;
+    closeMenu();
+    document.getElementById('winOverlay').style.display = 'none';
+    init();
 }
 
 window.onload = init;

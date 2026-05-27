@@ -1987,6 +1987,8 @@ function undoStep() {
     state.grid = entry.grid;
     state.clicks = entry.clicks;
     state.currentMisses = entry.currentMissesBefore;
+    // 保存到 localStorage，这样 init() 中的 loadState() 能读到正确的状态
+    saveState();
     closeMenu();
     document.getElementById('winOverlay').style.display = 'none';
     init();

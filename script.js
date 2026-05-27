@@ -23,6 +23,7 @@ const defaultData = {
 
 let state = loadState();
 let activePos = { r: -1, c: -1 };
+let historyLog = [];
 
 // --- 适配与折叠逻辑 ---
 function toggleConfig() {
@@ -396,6 +397,20 @@ function showMenu(r, c, e) {
 function closeMenu() { document.getElementById('menu').style.display = 'none'; }
 
 function applyEvent(type) {
+    // 记录操作日志
+    const logEntry = {
+        step: state.clicks + 1,
+        type: type,
+        row: activePos.r,
+        col: activePos.c,
+        currentMissesBefore: state.currentMisses,
+        probs: [...state.probs],
+        enablePity: state.enablePity,
+        pityStart: state.pityStart,
+        pityMax: state.pityMax
+    };
+    historyLog.push(logEntry);
+    
     playEffect(type);
     const { r, c } = activePos;
     const mark = (row, col) => {
@@ -1929,10 +1944,35 @@ function runBatchSimulation() {
 
 function confirmReset() {
     if(confirm("确定重置吗？")){
+        historyLog = [];
         state = JSON.parse(JSON.stringify(defaultData));
         localStorage.removeItem(STORAGE_KEY);
         document.getElementById('winOverlay').style.display = 'none';
         init();
     }
 }
+
+function exportHistory() {
+    if (historyLog.length === 0) {
+        alert("暂无操作记录，请先在网格上进行触发操作。");
+        return;
+    }
+    const exportData = {
+        version: "1.2",
+        exportTime: new Date().toISOString(),
+        totalSteps: historyLog.length,
+        logs: historyLog
+    };
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mc_history_${new Date().toISOString().slice(0,10)}_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 window.onload = init;

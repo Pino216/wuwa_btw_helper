@@ -237,6 +237,7 @@ function init() {
     initSectionToggles();
     
     updateAnalysis();
+    updateLogDisplay();
     
     // 监听窗口大小变化，调整折叠状态
     window.addEventListener('resize', function() {
@@ -460,6 +461,7 @@ function applyEvent(type) {
     state.clicks++;
     closeMenu();
     updateAnalysis();
+    updateLogDisplay();
 }
 
 // 算法对象
@@ -2006,6 +2008,24 @@ function exportHistory() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+function updateLogDisplay() {
+    const labels = ["仅当前 📍", "同列 ↕️", "同行 ↔️", "同行同列 ➕", "十字 💠", "九宫格 🍷", "全开 🌟"];
+    const logDisplay = document.getElementById('logDisplay');
+    if (!logDisplay) return;
+    if (historyLog.length === 0) {
+        logDisplay.textContent = '暂无操作记录';
+        return;
+    }
+    const friendlyLogs = historyLog.map((entry, index) => {
+        const step = index + 1;
+        const row = entry.row + 1;
+        const col = entry.col + 1;
+        const eventName = (entry.type >= 1 && entry.type <= 7) ? labels[entry.type - 1] : "事件" + entry.type;
+        return `第${step}步：点击了(${row},${col})，触发了${eventName}事件`;
+    });
+    logDisplay.textContent = friendlyLogs.join('\n');
 }
 
 function undoStep() {

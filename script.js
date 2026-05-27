@@ -1997,6 +1997,10 @@ function confirmReset() {
     }
 }
 
+function dismissWin() {
+    document.getElementById('winOverlay').style.display = 'none';
+}
+
 function exportHistory() {
     if (historyLog.length === 0) {
         alert("暂无操作记录，请先在网格上进行触发操作。");

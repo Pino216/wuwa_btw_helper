@@ -422,8 +422,11 @@ body::before {
     border-color: var(--accent); 
     background: rgba(255, 255, 255, 0.95);
 }
-.cell .coord { font-size: 8px; color: #ccc; position: absolute; top: 2px; left: 4px; }
-.cell .score { font-size: 11px; font-weight: bold; margin-top: 4px; }
+.cell .coord { font-size: 8px; color: #555; position: absolute; top: 2px; left: 4px; }
+.cell .score { font-size: 11px; font-weight: bold; margin-top: 4px; color: #222; }
+
+.cell.best .score, .cell.good .score { color: white; }
+.cell.best .coord, .cell.good .coord { color: white; }
 
 .cell.opened { 
     background: rgba(100,200,255,0.25) !important; 

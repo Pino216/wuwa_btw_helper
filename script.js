@@ -454,7 +454,17 @@ function applyEvent(type) {
         else if (type === 4) { for(let i=0; i<7; i++) { mark(i, c); mark(r, i); } }
         else if (type === 5) { mark(r, c); mark(r-1,c); mark(r+1,c); mark(r,c-1); mark(r,c+1); }
         else if (type === 6) { for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) mark(r+i, c+j); }
-        else if (type === 7) { state.grid.fill(true); init(); }
+        else if (type === 7) {
+            state.grid.fill(true);
+            // 直接更新所有单元格的样式，避免调用 init() 导致全量重建
+            for (let idx = 0; idx < 49; idx++) {
+                const cell = document.getElementById(`cell-${idx}`);
+                if (cell) {
+                    cell.classList.add('opened');
+                    cell.innerHTML = `<span class="coord">${Math.floor(idx/7)+1},${idx%7+1}</span><span class="score" id="s-${idx}"></span>`;
+                }
+            }
+        }
         state.currentMisses = 0;
     }
 

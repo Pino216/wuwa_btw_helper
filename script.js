@@ -2016,9 +2016,9 @@ function updateLogDisplay() {
     if (!logDisplay) return;
     if (historyLog.length === 0) {
         logDisplay.textContent = '暂无操作记录';
-        requestAnimationFrame(() => {
+        setTimeout(() => {
             logDisplay.scrollTop = logDisplay.scrollHeight;
-        });
+        }, 0);
         return;
     }
     const friendlyLogs = historyLog.map((entry, index) => {
@@ -2029,9 +2029,9 @@ function updateLogDisplay() {
         return `第${step}步：点击了(${row},${col})，触发了${eventName}事件`;
     });
     logDisplay.textContent = friendlyLogs.join('\n');
-    requestAnimationFrame(() => {
+    setTimeout(() => {
         logDisplay.scrollTop = logDisplay.scrollHeight;
-    });
+    }, 0);
 }
 
 function undoStep() {

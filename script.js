@@ -1981,11 +1981,20 @@ function exportHistory() {
         alert("暂无操作记录，请先在网格上进行触发操作。");
         return;
     }
+    const labels = ["仅当前 📍", "同列 ↕️", "同行 ↔️", "同行同列 ➕", "十字 💠", "九宫格 🍷", "全开 🌟"];
+    const friendlyLogs = historyLog.map((entry, index) => {
+        const step = index + 1;
+        const row = entry.row + 1;
+        const col = entry.col + 1;
+        const eventName = (entry.type >= 1 && entry.type <= 7) ? labels[entry.type - 1] : "事件" + entry.type;
+        return `第${step}步：点击了(${row},${col})，触发了${eventName}事件`;
+    });
     const exportData = {
         version: "1.2",
         exportTime: new Date().toISOString(),
         totalSteps: historyLog.length,
-        logs: historyLog
+        logs: historyLog,
+        friendlyLogs: friendlyLogs
     };
     const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: "application/json" });

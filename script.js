@@ -1648,8 +1648,17 @@ function updateAnalysis() {
     // 其他算法下不显示绿框
 
     if (unopened === 0 && state.clicks > 0) {
+        // 统计各类事件触发次数
+        const eventCounts = [0,0,0,0,0,0,0];
+        for (const entry of historyLog) {
+            if (entry.type >= 1 && entry.type <= 7) {
+                eventCounts[entry.type - 1]++;
+            }
+        }
+        const labels = ["仅当前 📍","同列 ↕️","同行 ↔️","同行同列 ➕","十字 💠","九宫格 🍷","全开 🌟"];
+        const detail = eventCounts.map((cnt, idx) => `${labels[idx]}: ${cnt}次`).join('，');
         document.getElementById('winOverlay').style.display = 'flex';
-        document.getElementById('winMessage').innerText = `已锁定全图坐标！本轮共反馈 ${state.clicks} 次。`;
+        document.getElementById('winMessage').innerText = `已锁定全图坐标！\n总点击: ${state.clicks} 次。\n触发分布: ${detail}`;
         localStorage.removeItem(STORAGE_KEY);
     }
     

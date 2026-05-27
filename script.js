@@ -1,5 +1,6 @@
 const size = 7;
 const STORAGE_KEY = 'MC_EVENT_HELPER_V1.2_MOBILE';
+const STORAGE_KEY_HISTORY = 'MC_EVENT_HELPER_HISTORY_V1';
 const defaultData = {
     grid: Array(size * size).fill(false),
     probs: [50, 11, 11, 5, 13, 9, 1],
@@ -24,6 +25,24 @@ const defaultData = {
 let state = loadState();
 let activePos = { r: -1, c: -1 };
 let historyLog = [];
+
+// 持久化历史记录的辅助函数
+function loadHistory() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY_HISTORY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) return parsed;
+        }
+    } catch(e) {
+        // ignore
+    }
+    return [];
+}
+
+function saveHistory() {
+    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyLog));
+}
 
 // --- 适配与折叠逻辑 ---
 function toggleConfig() {
@@ -108,6 +127,7 @@ function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 function init() {
     // 确保状态正确加载
     state = loadState();
+    historyLog = loadHistory();
     
     // 渲染输入框
     const probContainer = document.getElementById('probInputs');
@@ -412,6 +432,7 @@ function applyEvent(type) {
         clicks: state.clicks
     };
     historyLog.push(logEntry);
+    saveHistory();
     
     playEffect(type);
     const { r, c } = activePos;
@@ -1949,6 +1970,7 @@ function confirmReset() {
         historyLog = [];
         state = JSON.parse(JSON.stringify(defaultData));
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEY_HISTORY);
         document.getElementById('winOverlay').style.display = 'none';
         init();
     }
@@ -1983,6 +2005,7 @@ function undoStep() {
         alert("没有可撤销的步骤");
         return;
     }
+    saveHistory();
     // 恢复操作前的状态
     state.grid = entry.grid;
     state.clicks = entry.clicks;

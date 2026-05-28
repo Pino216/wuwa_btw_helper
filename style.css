@@ -434,7 +434,7 @@ body::before {
     cursor: default; 
     backdrop-filter: blur(10px);
 }
-.cell.opened::after { content: '✅'; font-size: 18px; }
+.cell.opened::after { content: ''; }
 .cell.opened .score, .cell.opened .coord { display: none; }
 
 .cell.best { background: var(--danger) !important; color: white; z-index: 5; box-shadow: 0 0 15px rgba(255,71,87,0.4); border: none; }
@@ -990,6 +990,13 @@ body::before {
         transform: scale(1); 
         opacity: 1; 
     } 
+}
+/* 步数显示样式 */
+.cell .step-num {
+    font-size: 16px;
+    font-weight: 700;
+    color: #e0e0e0;
+    text-shadow: 0 0 6px rgba(0,0,0,0.4);
 }
 @keyframes popIn { 
     from { 

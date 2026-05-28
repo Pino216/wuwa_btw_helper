@@ -14,6 +14,7 @@ const defaultData = {
     autoWeight: true,
     mctsIterations: 300,
     mctsStable: true,
+    openStep: Array(size * size).fill(0),
     comprehensiveAlgorithms: {
         greedy: true,
         heuristic: true,
@@ -93,6 +94,8 @@ function loadState() {
         // 确保数组是新的引用
         result.grid = Array.isArray(loaded.grid) ? [...loaded.grid] : [...defaultData.grid];
         result.probs = Array.isArray(loaded.probs) ? [...loaded.probs] : [...defaultData.probs];
+        // 确保 openStep 数组存在
+        result.openStep = (Array.isArray(loaded.openStep) && loaded.openStep.length === 49) ? [...loaded.openStep] : Array(49).fill(0);
         
         // 确保数值字段正确
         result.clicks = Number.isInteger(loaded.clicks) ? loaded.clicks : defaultData.clicks;
@@ -202,9 +205,16 @@ function init() {
     for (let i = 0; i < 49; i++) {
         const r = Math.floor(i / 7), c = i % 7;
         const cell = document.createElement('div');
-        cell.className = 'cell' + (state.grid[i] ? ' opened' : '');
-        cell.id = `cell-${i}`;
-        cell.innerHTML = `<span class="coord">${r+1},${c+1}</span><span class="score" id="s-${i}">0</span>`;
+        if (state.grid[i]) {
+            cell.className = 'cell opened';
+            cell.id = `cell-${i}`;
+            const step = (state.openStep && state.openStep[i]) ? state.openStep[i] : '?';
+            cell.innerHTML = `<span class="step-num">${step}</span>`;
+        } else {
+            cell.className = 'cell';
+            cell.id = `cell-${i}`;
+            cell.innerHTML = `<span class="coord">${r+1},${c+1}</span><span class="score" id="s-${i}">0</span>`;
+        }
         cell.onclick = (e) => showMenu(r, c, e);
         gridEl.appendChild(cell);
     }
@@ -430,6 +440,7 @@ function applyEvent(type) {
         pityStart: state.pityStart,
         pityMax: state.pityMax,
         grid: [...state.grid],
+        openStep: [...state.openStep],
         clicks: state.clicks
     };
     historyLog.push(logEntry);
@@ -440,8 +451,15 @@ function applyEvent(type) {
     const mark = (row, col) => {
         if (row >= 0 && row < 7 && col >= 0 && col < 7) {
             const idx = row * 7 + col;
+            if (!state.grid[idx]) {
+                state.openStep[idx] = state.clicks + 1;
+            }
             state.grid[idx] = true;
-            document.getElementById(`cell-${idx}`).classList.add('opened');
+            const cell = document.getElementById(`cell-${idx}`);
+            if (cell) {
+                cell.classList.add('opened');
+                cell.innerHTML = `<span class="step-num">${state.openStep[idx]}</span>`;
+            }
         }
     };
     if (type === 1) {
@@ -455,13 +473,18 @@ function applyEvent(type) {
         else if (type === 5) { mark(r, c); mark(r-1,c); mark(r+1,c); mark(r,c-1); mark(r,c+1); }
         else if (type === 6) { for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) mark(r+i, c+j); }
         else if (type === 7) {
+            // 先记录步数再设置格子
+            for (let idx = 0; idx < 49; idx++) {
+                if (!state.grid[idx]) {
+                    state.openStep[idx] = state.clicks + 1;
+                }
+            }
             state.grid.fill(true);
-            // 直接更新所有单元格的样式，避免调用 init() 导致全量重建
             for (let idx = 0; idx < 49; idx++) {
                 const cell = document.getElementById(`cell-${idx}`);
                 if (cell) {
                     cell.classList.add('opened');
-                    cell.innerHTML = `<span class="coord">${Math.floor(idx/7)+1},${idx%7+1}</span><span class="score" id="s-${idx}"></span>`;
+                    cell.innerHTML = `<span class="step-num">${state.openStep[idx]}</span>`;
                 }
             }
         }
@@ -2066,6 +2089,7 @@ function undoStep() {
     saveHistory();
     // 恢复操作前的状态
     state.grid = entry.grid;
+    state.openStep = entry.openStep || Array(49).fill(0);
     state.clicks = entry.clicks;
     state.currentMisses = entry.currentMissesBefore;
     // 保存到 localStorage，这样 init() 中的 loadState() 能读到正确的状态

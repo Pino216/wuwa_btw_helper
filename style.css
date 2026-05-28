@@ -433,6 +433,7 @@ body::before {
     border-color: rgba(255,255,255,0.3); 
     cursor: default; 
     backdrop-filter: blur(10px);
+    font-size: 18px;
 }
 .cell.opened::after { content: ''; }
 .cell.opened .score, .cell.opened .coord { display: none; }

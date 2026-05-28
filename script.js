@@ -15,6 +15,7 @@ const defaultData = {
     mctsIterations: 300,
     mctsStable: true,
     openStep: Array(size * size).fill(0),
+    showSteps: false,
     comprehensiveAlgorithms: {
         greedy: true,
         heuristic: true,
@@ -103,6 +104,7 @@ function loadState() {
         result.pityStart = Number.isInteger(loaded.pityStart) ? loaded.pityStart : defaultData.pityStart;
         result.pityMax = Number.isInteger(loaded.pityMax) ? loaded.pityMax : defaultData.pityMax;
         result.currentMisses = Number.isInteger(loaded.currentMisses) ? loaded.currentMisses : defaultData.currentMisses;
+        result.showSteps = typeof loaded.showSteps === 'boolean' ? loaded.showSteps : false;
         // 处理算法标识符的转换：将'weighted'转换为'heuristic'
         let loadedAlgorithm = typeof loaded.currentAlgorithm === 'string' ? loaded.currentAlgorithm : defaultData.currentAlgorithm;
         if (loadedAlgorithm === 'weighted') {
@@ -154,6 +156,9 @@ function init() {
     document.getElementById('algorithmSelect').value = state.currentAlgorithm;
     document.getElementById('heuristicWeight').value = state.heuristicWeight;
     document.getElementById('autoWeight').checked = state.autoWeight;
+    // 显示步数开关
+    const showStepsCheck = document.getElementById('showStepsCheck');
+    if (showStepsCheck) showStepsCheck.checked = state.showSteps;
     document.getElementById('mctsIterations').value = state.mctsIterations || 300;
     document.getElementById('mctsStable').checked = state.mctsStable !== false;
     
@@ -208,8 +213,12 @@ function init() {
         if (state.grid[i]) {
             cell.className = 'cell opened';
             cell.id = `cell-${i}`;
-            const step = (state.openStep && state.openStep[i]) ? state.openStep[i] : '?';
-            cell.innerHTML = `<span class="step-num">${step}</span>`;
+            if (state.showSteps) {
+                const step = (state.openStep && state.openStep[i]) ? state.openStep[i] : '?';
+                cell.innerHTML = `<span class="step-num">${step}</span>`;
+            } else {
+                cell.innerHTML = '✅';
+            }
         } else {
             cell.className = 'cell';
             cell.id = `cell-${i}`;
@@ -451,7 +460,11 @@ function applyEvent(type) {
             const cell = document.getElementById(`cell-${idx}`);
             if (cell) {
                 cell.classList.add('opened');
-                cell.innerHTML = `<span class="step-num">${state.openStep[idx]}</span>`;
+                if (state.showSteps) {
+                    cell.innerHTML = `<span class="step-num">${state.openStep[idx]}</span>`;
+                } else {
+                    cell.innerHTML = '✅';
+                }
             }
         }
     };
@@ -477,7 +490,11 @@ function applyEvent(type) {
                 const cell = document.getElementById(`cell-${idx}`);
                 if (cell) {
                     cell.classList.add('opened');
-                    cell.innerHTML = `<span class="step-num">${state.openStep[idx]}</span>`;
+                    if (state.showSteps) {
+                        cell.innerHTML = `<span class="step-num">${state.openStep[idx]}</span>`;
+                    } else {
+                        cell.innerHTML = '✅';
+                    }
                 }
             }
         }
@@ -2090,6 +2107,29 @@ function undoStep() {
     closeMenu();
     document.getElementById('winOverlay').style.display = 'none';
     init();
+}
+
+// 更新已开格子显示（根据显示步数开关）
+function updateShowStepsVisual() {
+    for (let idx = 0; idx < 49; idx++) {
+        if (state.grid[idx]) {
+            const cell = document.getElementById(`cell-${idx}`);
+            if (cell) {
+                if (state.showSteps) {
+                    const step = state.openStep[idx] || '?';
+                    cell.innerHTML = `<span class="step-num">${step}</span>`;
+                } else {
+                    cell.innerHTML = '✅';
+                }
+            }
+        }
+    }
+}
+
+function toggleShowSteps(checked) {
+    state.showSteps = checked;
+    updateShowStepsVisual();
+    saveState();
 }
 
 window.onload = init;

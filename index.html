@@ -164,6 +164,10 @@
                 </div>
             </div>
             
+            <div class="prob-input-group" style="margin-top:12px;">
+                <label>显示步数</label>
+                <input type="checkbox" id="showStepsCheck" onchange="toggleShowSteps(this.checked)" style="width:auto;">
+            </div>
             <!-- 重置按钮 -->
             <button class="btn-reset" onclick="confirmReset()">🔄 重置进度</button>
             <button class="btn-reset" onclick="exportHistory()" style="margin-top:10px; background:var(--accent);">📋 导出流程记录</button>

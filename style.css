@@ -438,7 +438,7 @@ body::before {
 .cell.opened::after { content: ''; }
 .cell.opened .score, .cell.opened .coord { display: none; }
 
-.cell.best { background: linear-gradient(135deg, #00ff88, #00c8ff) !important; color: white; z-index: 5; box-shadow: 0 0 15px rgba(0,255,136,0.4); border: none; }
+.cell.best { background: linear-gradient(135deg, #8B0000, #FF0000) !important; color: white; z-index: 5; box-shadow: 0 0 15px rgba(255,0,0,0.4); border: none; }
 .cell.good { background: #ffa502 !important; color: white; z-index: 4; border: none; }
 .cell.combined-best { 
     border: 3px solid #00ff00 !important; 
